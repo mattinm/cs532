@@ -6,6 +6,8 @@
 # define M_PI 3.14159265358979323846264338327
 #endif
 
+#define RANDOM_DOUBLE(min, max) ((double)(min) + (double)rand() / RAND_MAX * ((double)(max) - (double)(min)))
+
 void print_usage()
 {
     printf("Usage: ./kmeans num_clusters star_file1 <star_file2 ...>\n");
@@ -25,9 +27,9 @@ int main(int argc, char **argv)
     int cur_stars;
     int i;
     double l, b, r;
-    double *stars, *star;
-    FILE **fps;
-    FILE *fp;
+    double *stars, *star, extents[3][2];
+    double *sums, *sum, *means, *mean;
+    FILE **fps, *fp;
 
     /* ensure good input */
     if (argc < 3) {
@@ -81,6 +83,20 @@ int main(int argc, char **argv)
         return 1;
     }
 
+    /* allocate memory for the sums */
+    if (!(sums = malloc(sizeof(*sums) * num_clusters * 3))) {
+        printf("Unable to allocate memory for sums.\n");
+        cleanup_files(fps, num_files);
+        return 1;
+    }
+
+    /* allocate memory for the means */
+    if (!(means = malloc(sizeof(*means) * num_clusters * 3))) {
+        printf("Unable to allocate memory for means.\n");
+        cleanup_files(fps, num_files);
+        return 1;
+    }
+
     /* read in the input of each file */
     star = stars;
     for (i = 0; i < num_files; ++i) {
@@ -88,11 +104,32 @@ int main(int argc, char **argv)
         while (3 == fscanf(fp, "%lf %lf %lf", &l, &b, &r)) {
             l = l * M_PI / 180;
             b = b * M_PI / 180;
+    
+            /* x value */
+            *star = r * sin(b) * cos(l);
+            if (*star < extents[0][0]) extents[0][0] = *star;
+            if (*star > extents[0][1]) extents[0][1] = *star;
 
-            *star++ = r * sin(b) * cos(l);
-            *star++ = r * sin(b) * sin(l);
-            *star++ = r * cos(b);
+            /* y value */
+            ++star; *star = r * sin(b) * sin(l);
+            if (*star < extents[1][0]) extents[1][0] = *star;
+            if (*star > extents[1][1]) extents[1][1] = *star;
+            
+            /* z value */
+            ++star; *star = r * cos(b);
+            if (*star < extents[2][0]) extents[2][0] = *star;
+            if (*star > extents[2][1]) extents[2][1] = *star;
+
+            ++star;
         }
+    }
+
+    /* get our means by random within the extents */
+    mean = means;
+    for (i = 0; i < num_clusters; ++i) {
+        *mean++ = RANDOM_DOUBLE(extents[0][0], extents[0][1]);
+        *mean++ = RANDOM_DOUBLE(extents[1][0], extents[1][1]);
+        *mean++ = RANDOM_DOUBLE(extents[2][0], extents[2][1]);
     }
 
     /* close all of our files */
