@@ -131,11 +131,11 @@ int main(int argc, char **argv)
     /* read in the input of each file */
     xmin = xmax = ymin = ymax = zmin = zmax = 0.0;
     cur_stars = 0;
+    index = 0;
     for (i = 0; i < num_files; ++i) {
         fp = fps[i];
-        index = 0;
 
-        while (3 == fscanf(fp, "%lf %lf %lf", &l, &b, &r)) {
+        while (3 == fscanf(fp, " %lf %lf %lf", &l, &b, &r)) {
 
             stars_lbr[index] = l;
             stars_lbr[index+1] = b;
@@ -166,8 +166,6 @@ int main(int argc, char **argv)
             stars[index+1] = y;
             stars[index+2] = z;
 
-            fprintf(stderr, "%6d: %lf %lf %lf\n", cur_stars, stars_lbr[index], stars_lbr[index+1], stars_lbr[index+2]);
-
             ++cur_stars;
             index += 3;
         }
@@ -179,12 +177,6 @@ int main(int argc, char **argv)
     }
 
     printf("X: (%.3lf, %.3lf)\nY: (%.3lf, %.3lf)\nZ: (%.3lf, %.3lf)\n", xmin, xmax, ymin, ymax, zmin, zmax);
-
-    /* test loop */
-    for (i = 0; i < num_stars; ++i) {
-        index = i * 3;
-        fprintf(stderr, "%6d: %lf %lf %lf vs %lf %lf %lf\n", i, stars_lbr[index], stars_lbr[index+1], stars_lbr[index+2], stars[index], stars[index+1], stars[index+2]);
-    }
 
     /* close all of our files */
     cleanup_files(fps, num_files);
