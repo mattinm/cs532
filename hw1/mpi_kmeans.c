@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <mpi.h>
 
 #ifndef M_PI
 # define M_PI 3.14159265358979323846264338327
@@ -37,6 +38,7 @@ int main(int argc, char **argv)
     double *stars_lbr;
     int *clusters, *cluster_counts;
     double xmin, xmax, ymin, ymax, zmin, zmax;
+    double xming, xmaxg, yming, ymaxg, zming, zmaxg;
     double *sums, *means;
     FILE **fps, *fp;
     char fname[255];
@@ -47,7 +49,7 @@ int main(int argc, char **argv)
     int rank;
 
     /* slices for the array */
-    int *slice_sizes, *displacements, splice_size, zero_size;
+    int *slice_sizes, *displacements, slice_size, zero_size;
     int *cluster_slice, *cluster_counts_local;
     double *slice, *sums_local;
 
@@ -73,6 +75,7 @@ int main(int argc, char **argv)
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
     /* main process should read in the stars */
+    stars_lbr = NULL;
     if (rank == 0) {
         /* allocate memory for our files */
         num_files = --argc; ++argv;
@@ -133,7 +136,7 @@ int main(int argc, char **argv)
         cleanup_files(fps, num_files);
 
         /* print out some debug info */
-        printf("X: (%.3lf, %.3lf)\nY: (%.3lf, %.3lf)\nZ: (%.3lf, %.3lf)\n", xmin, xmax, ymin, ymax, zmin, zmax);
+        printf("Number of nodes: %d\n", comm_sz);
         printf("Number of files: %d\n\tNumber of stars: %d\n", num_files, num_stars);
         printf("Number of clusters: %d\n", num_clusters);
     }
@@ -144,55 +147,35 @@ int main(int argc, char **argv)
 
     /* prepare the slices (this first process gets the remainder data) */
     slice_size = num_stars / comm_sz;
-    zero_size = num_stars - slice_size * comm_sz;
+    zero_size = slice_size + num_stars - slice_size * comm_sz;
 
     slice_sizes = malloc(sizeof(*slice_sizes) * comm_sz);
-    memset(slice_sizes, slice_size * 3, sizeof(*slice_sizes) * comm_sz);
     *slice_sizes = zero_size * 3;
 
     /* displacements are annoying */
-    displacments = malloc(sizeof(*displacements) * comm_sz);
-    *displacments = 0;
+    displacements = malloc(sizeof(*displacements) * comm_sz);
+    *displacements = 0;
+
     for (i = 1; i < comm_sz; ++i) {
+        slice_sizes[i] = slice_size * 3;
         displacements[i] = displacements[i-1] + slice_sizes[i-1];
     }
 
-    if (rank == 0) slice_size = num_stars - slice_size * comm_sz;
-    slice = malloc(sizeof(*slice) * slice_size);
-
-    /* get our means by random within the extents */
     if (rank == 0) {
-        means = malloc(sizeof(*means) * num_clusters * 3);
-        if (rank == 0) {
-            srand(time(NULL));
-            for (i = 0; i < num_clusters; ++i) {
-                index = i * 3;
-                x = RANDOM_DOUBLE(xmin, xmax);
-                y = RANDOM_DOUBLE(ymin, ymax);
-                z = RANDOM_DOUBLE(zmin, zmax);
-
-                printf("\tMean #%d: (%.3lf, %.3lf, %.3lf)\n", i+1, x, y, z);
-
-                means[index] = x;
-                means[index+1] = y;
-                means[index+2] = z;
-            }
-            printf("\n");
-        }
+        slice_size = zero_size;
     }
 
-    /* synchronize the starting means */
-    MPI_Bcast(means, num_clusters * 3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    slice = malloc(sizeof(*slice) * slice_size * 3);
+    printf("NODE #%d | Size: %d\n", rank, slice_size);
 
     /* convert from LBR to XYZ */
-    stars = malloc(sizeof(*stars) * num_stars * 3);
     MPI_Scatterv(
             stars_lbr,          /* array to scatter */
             slice_sizes,        /* array of sizes */
             displacements,      /* array of offsets */
             MPI_DOUBLE,         /* datatype */
             slice,              /* memory for the slice */
-            slice_size,  /* size of the slice */
+            slice_sizes[rank],         /* size of the slice */
             MPI_DOUBLE,         /* datatype */
             0,                  /* where the main array is from */
             MPI_COMM_WORLD      /* send to all */
@@ -226,6 +209,40 @@ int main(int argc, char **argv)
         slice[index+2] = z;
     }
 
+    printf("NODE #%d | X: (%lf, %lf) | Y: (%lf, %lf) | Z: (%lf, %lf)\n", rank, xmin, xmax, ymin, ymax, zmin, zmax);
+
+    /* update the min / max for x / y / z */
+    MPI_Reduce(&xmin, &xming, 1, MPI_DOUBLE, MPI_MIN, 0, MPI_COMM_WORLD);
+    MPI_Reduce(&ymin, &yming, 1, MPI_DOUBLE, MPI_MIN, 0, MPI_COMM_WORLD);
+    MPI_Reduce(&zmin, &zming, 1, MPI_DOUBLE, MPI_MIN, 0, MPI_COMM_WORLD);
+    MPI_Reduce(&xmax, &xmaxg, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+    MPI_Reduce(&ymax, &ymaxg, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+    MPI_Reduce(&zmax, &zmaxg, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+
+    /* get our means by random within the extents */
+    means = malloc(sizeof(*means) * num_clusters * 3);
+    if (rank == 0) {
+        srand(time(NULL));
+        printf("X: (%lf, %lf) | Y: (%lf, %lf) | Z: (%lf, %lf)\n", xming, xmaxg, yming, ymaxg, zming, zmaxg);
+        for (i = 0; i < num_clusters; ++i) {
+            index = i * 3;
+            x = RANDOM_DOUBLE(xming, xmaxg);
+            y = RANDOM_DOUBLE(yming, ymaxg);
+            z = RANDOM_DOUBLE(zming, zmaxg);
+
+            printf("\tMean #%d: (%.3lf, %.3lf, %.3lf)\n", i+1, x, y, z);
+
+            means[index] = x;
+            means[index+1] = y;
+            means[index+2] = z;
+        }
+        printf("\n");
+    }
+
+    /* synchronize the starting means */
+    MPI_Bcast(means, num_clusters * 3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+
+
     /* allocate memory for the cluster assignment and sums */
     clusters = malloc(sizeof(*clusters) * num_stars);
     cluster_slice = malloc(sizeof(*clusters) * slice_size);
@@ -238,10 +255,10 @@ int main(int argc, char **argv)
     do {
         /* reset the data */
         memset(sums_local, 0, sizeof(*sums) * num_clusters * 3);
-        memset(cluster_counts_local, 0, sizeof(*cluster_counts) * num_clusters);
+        memset(cluster_counts_local, 0, sizeof(*cluster_counts_local) * num_clusters);
 
         /* update based on current means */
-        for (i = 0; i < slice; ++i) {
+        for (i = 0; i < slice_size; ++i) {
             int min_cluster = 0;
             double xd, yd, zd;
             double cur_distance, min_distance;
@@ -292,6 +309,7 @@ int main(int argc, char **argv)
                 cluster_counts,
                 num_clusters,
                 MPI_INT,
+                MPI_SUM,
                 0,
                 MPI_COMM_WORLD
         );
@@ -302,6 +320,7 @@ int main(int argc, char **argv)
                 sums,
                 num_clusters * 3,
                 MPI_DOUBLE,
+                MPI_SUM,
                 0,
                 MPI_COMM_WORLD
         );
@@ -356,19 +375,21 @@ int main(int argc, char **argv)
 
         /* send out the new means */
         MPI_Bcast(means, num_clusters * 3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+        MPI_Bcast(&done, 1, MPI_INT, 0, MPI_COMM_WORLD);
         /* END TODO: DISTRIBUTE THIS? */
     } while (!done);
 
     /* sync up our clusters */
-    memset(slice_sizes, slice_size, sizeof(*slice_sizes) * comm_sz);
     *slice_sizes = zero_size;
+    *displacements = 0;
     for (i = 1; i < comm_sz; ++i) {
+        slice_sizes[i] /= 3;
         displacements[i] = displacements[i-1] + slice_sizes[i-1];
     }
 
     MPI_Gatherv(
             cluster_slice,
-            slice_size,
+            slice_sizes[rank],
             MPI_INT,
             clusters,
             slice_sizes,
