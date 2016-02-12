@@ -12,7 +12,7 @@
 
 #define RANDOM_INT(max) (rand() % (max))
 
-#define COMP_PRECISION 0.0001
+#define COMP_PRECISION 0.001
 
 void print_usage()
 {
@@ -31,7 +31,7 @@ int main(int argc, char **argv)
 {
     int num_clusters, num_stars, num_files;
     int cur_stars;
-    int i, j, index, jindex;
+    int i, j, index, jindex, iterations;
     double l, b, r;
     double x, y, z;
     double *stars, *stars_lbr;
@@ -203,6 +203,7 @@ int main(int argc, char **argv)
     printf("\n");
 
     /* update */
+    iterations = 0;
     do {
         /* reset the data */
         memset(sums, 0, sizeof(*sums) * num_clusters * 3);
@@ -298,7 +299,11 @@ int main(int argc, char **argv)
 
             printf("Mean %d: (%.3lf, %.3lf, %.3lf)\n", i+1, cur_meanx, cur_meany, cur_meanz);
         }
+
+        printf("Completed iteration: %d\n", ++iterations);
     } while (!done);
+
+    printf("\nTOTAL ITERATIONS: %d\n", iterations);
 
     /* output our clusters */
     if (!(fps = malloc(sizeof(*fps) * num_clusters))) {
