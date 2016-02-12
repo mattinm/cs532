@@ -1,20 +1,10 @@
 cmake_minimum_required (VERSION 2.6)
-project (kmeans)
+project (kmeanshw1)
 
-# These will make cmake use clang and clang++ instead of gcc and g++
-#SET (CMAKE_C_COMPILER             "/usr/bin/clang")
-SET (CMAKE_C_FLAGS                "-Wall -std=c99")
-SET (CMAKE_C_FLAGS_DEBUG          "-g")
-SET (CMAKE_C_FLAGS_MINSIZEREL     "-Os -DNDEBUG")
-SET (CMAKE_C_FLAGS_RELEASE        "-O4 -DNDEBUG")
-SET (CMAKE_C_FLAGS_RELWITHDEBINFO "-O2 -g")
+set(CMAKE_BINARY_DIR ${CMAKE_SOURCE_DIR}/build)
 
-#looks like on OSX the c++ clang compiler is also clang, not clang++
-SET (CMAKE_CXX_FLAGS                "-Wall")
-SET (CMAKE_CXX_FLAGS_DEBUG          "-g")
-SET (CMAKE_CXX_FLAGS_MINSIZEREL     "-Os -DNDEBUG")
-SET (CMAKE_CXX_FLAGS_RELEASE        "-O4 -DNDEBUG")
-SET (CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O2 -g")
+set(EXECUTABLE_OUTPUT_PATH ${CMAKE_BINARY_DIR})
+set(LIBRARY_OUTPUT_PATH ${CMAKE_BINARY_DIR})
 
-add_executable(kmeans kmeans.c)
-target_link_libraries(kmeans m)
+add_subdirectory(kmeans)
+add_subdirectory(mpi_kmeans)

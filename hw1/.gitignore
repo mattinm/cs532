@@ -1,2 +1,7 @@
 build/
 a.out
+
+CMakeFiles/
+CMakeCache.txt
+Makefile
+*.cmake
