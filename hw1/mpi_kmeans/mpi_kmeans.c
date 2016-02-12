@@ -4,16 +4,7 @@
 #include <string.h>
 #include <time.h>
 #include <mpi.h>
-
-#ifndef M_PI
-# define M_PI 3.14159265358979323846264338327
-#endif
-
-#define RANDOM_DOUBLE(min, max) ((double)(min) + (double)rand() / RAND_MAX * ((double)(max) - (double)(min)))
-
-#define RANDOM_INT(max) (rand() % (max))
-
-#define COMP_PRECISION 0.0001
+#include "kmeans.h"
 
 void print_usage()
 {
@@ -41,9 +32,8 @@ int main(int argc, char **argv)
     double xming, xmaxg, yming, ymaxg, zming, zmaxg;
     double *sums, *means;
     FILE **fps, *fp;
-    char fname[255];
 
-    int done;
+    int done, iterations;
 
     int comm_sz; /* MPI stuff */
     int rank;
@@ -136,9 +126,9 @@ int main(int argc, char **argv)
         cleanup_files(fps, num_files);
 
         /* print out some debug info */
-        printf("Number of nodes: %d\n", comm_sz);
-        printf("Number of files: %d\n\tNumber of stars: %d\n", num_files, num_stars);
-        printf("Number of clusters: %d\n", num_clusters);
+        DEBUG_PRINTF(("Number of nodes: %d\n", comm_sz));
+        DEBUG_PRINTF(("Number of files: %d\n\tNumber of stars: %d\n", num_files, num_stars));
+        DEBUG_PRINTF(("Number of clusters: %d\n", num_clusters));
     }
 
     /* synchronize some basic data here */
@@ -209,7 +199,7 @@ int main(int argc, char **argv)
         slice[index+2] = z;
     }
 
-    printf("NODE #%d | X: (%lf, %lf) | Y: (%lf, %lf) | Z: (%lf, %lf)\n", rank, xmin, xmax, ymin, ymax, zmin, zmax);
+    DEBUG_PRINTF(("NODE #%d | X: (%lf, %lf) | Y: (%lf, %lf) | Z: (%lf, %lf)\n", rank, xmin, xmax, ymin, ymax, zmin, zmax));
 
     /* update the min / max for x / y / z */
     MPI_Reduce(&xmin, &xming, 1, MPI_DOUBLE, MPI_MIN, 0, MPI_COMM_WORLD);
@@ -219,9 +209,19 @@ int main(int argc, char **argv)
     MPI_Reduce(&ymax, &ymaxg, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
     MPI_Reduce(&zmax, &zmaxg, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
 
+    /* nullify some values here that no other node but the head neads */
+    clusters = NULL;
+    cluster_counts = NULL;
+    sums = NULL;
+
     /* get our means by random within the extents */
     means = malloc(sizeof(*means) * num_clusters * 3);
     if (rank == 0) {
+        /* only rank 0 cares about the gather values */
+        clusters = malloc(sizeof(*clusters) * num_stars);
+        cluster_counts = malloc(sizeof(*cluster_counts) * num_clusters);
+        sums = malloc(sizeof(*sums) * num_clusters * 3);
+
         srand(time(NULL));
         printf("X: (%lf, %lf) | Y: (%lf, %lf) | Z: (%lf, %lf)\n", xming, xmaxg, yming, ymaxg, zming, zmaxg);
         for (i = 0; i < num_clusters; ++i) {
@@ -244,14 +244,12 @@ int main(int argc, char **argv)
 
 
     /* allocate memory for the cluster assignment and sums */
-    clusters = malloc(sizeof(*clusters) * num_stars);
     cluster_slice = malloc(sizeof(*clusters) * slice_size);
-    cluster_counts = malloc(sizeof(*cluster_counts) * num_clusters);
     cluster_counts_local = malloc(sizeof(*cluster_counts_local) * num_clusters);
-    sums = malloc(sizeof(*sums) * num_clusters * 3);
     sums_local = malloc(sizeof(*sums_local) * num_clusters * 3);
 
     /* update */
+    iterations = 0;
     do {
         /* reset the data */
         memset(sums_local, 0, sizeof(*sums) * num_clusters * 3);
@@ -329,7 +327,7 @@ int main(int argc, char **argv)
         /* TODO: DISTRUBTE THIS? */
         if (rank == 0) {
             done = 1;
-            j = 0;
+            ++iterations;
             printf("\n");
             for (i = 0; i < num_clusters; ++i) {
                 double cur_meanx, cur_meany, cur_meanz;
@@ -342,7 +340,7 @@ int main(int argc, char **argv)
                     cur_meany = RANDOM_DOUBLE(ymin, ymax);
                     cur_meanz = RANDOM_DOUBLE(zmin, zmax);
 
-                    printf("New random mean #%d: (%.3lf, %.3lf, %.3lf)\n", i+1, cur_meanx, cur_meany, cur_meanz);
+                    DEBUG_PRINTF(("New random mean #%d: (%.3lf, %.3lf, %.3lf)\n", i+1, cur_meanx, cur_meany, cur_meanz));
 
                     means[index] = cur_meanx;
                     means[index+1] = cur_meany;
@@ -369,7 +367,7 @@ int main(int argc, char **argv)
                     means[index+2] = cur_meanz;
                 }
 
-                printf("Mean %d: (%.3lf, %.3lf, %.3lf)\n", i+1, cur_meanx, cur_meany, cur_meanz);
+                DEBUG_PRINTF(("Mean %d: (%.3lf, %.3lf, %.3lf)\n", i+1, cur_meanx, cur_meany, cur_meanz));
             }
         }
 
@@ -400,6 +398,22 @@ int main(int argc, char **argv)
     );
 
     if (rank == 0) {
+#ifdef OUTPUT_FILES
+        char fname[255];
+#endif
+
+        /* print out the final means */
+        printf("\nFinal Means\n");
+        printf("===========\n");
+        for (i = 0; i < num_clusters; ++i) {
+            index = i * 3;
+            printf("Mean #%d: %.3lf, %.3lf, %.3lf\n", i, means[index], means[index+1], means[index+2]);
+        }
+
+        /* print out the number of iterations */
+        printf("\nTOTAL ITERATIONS: %d\n", iterations);
+
+#ifdef OUTPUT_FILES
         /* output our clusters */
         if (!(fps = malloc(sizeof(*fps) * num_clusters))) {
             printf("Unable to allocate memory for output files.\n");
@@ -429,9 +443,12 @@ int main(int argc, char **argv)
 
         /* cleanup our files */
         cleanup_files(fps, num_clusters);
+#endif /* OUTPUT_FILES */
     }
 
+#ifdef OUTPUT_FILES
 CLEANUP: /* cleanup and exit */
+#endif
     free(clusters);
     free(cluster_slice);
     free(cluster_counts);

@@ -3,16 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-
-#ifndef M_PI
-# define M_PI 3.14159265358979323846264338327
-#endif
-
-#define RANDOM_DOUBLE(min, max) ((double)(min) + (double)rand() / RAND_MAX * ((double)(max) - (double)(min)))
-
-#define RANDOM_INT(max) (rand() % (max))
-
-#define COMP_PRECISION 0.001
+#include "kmeans.h"
 
 void print_usage()
 {
@@ -39,7 +30,9 @@ int main(int argc, char **argv)
     double xmin, xmax, ymin, ymax, zmin, zmax;
     double *sums, *means;
     FILE **fps, *fp;
+#ifdef OUTPUT_FILES
     char fname[255];
+#endif
 
     int done;
 
@@ -176,14 +169,14 @@ int main(int argc, char **argv)
         num_stars = cur_stars;
     }
 
-    printf("X: (%.3lf, %.3lf)\nY: (%.3lf, %.3lf)\nZ: (%.3lf, %.3lf)\n", xmin, xmax, ymin, ymax, zmin, zmax);
+    DEBUG_PRINTF(("X: (%.3lf, %.3lf)\nY: (%.3lf, %.3lf)\nZ: (%.3lf, %.3lf)\n", xmin, xmax, ymin, ymax, zmin, zmax));
 
     /* close all of our files */
     cleanup_files(fps, num_files);
 
     /* print out some debug info */
-    printf("Number of files: %d\n\tNumber of stars: %d\n", num_files, num_stars);
-    printf("Number of clusters: %d\n", num_clusters);
+    DEBUG_PRINTF(("Number of files: %d\n\tNumber of stars: %d\n", num_files, num_stars));
+    DEBUG_PRINTF(("Number of clusters: %d\n", num_clusters));
 
     /* get our means by random within the extents */
     srand(time(NULL));
@@ -193,14 +186,14 @@ int main(int argc, char **argv)
         y = RANDOM_DOUBLE(ymin, ymax);
         z = RANDOM_DOUBLE(zmin, zmax);
 
-        printf("\tMean #%d: (%.3lf, %.3lf, %.3lf)\n", i+1, x, y, z);
+        DEBUG_PRINTF(("\tMean #%d: (%.3lf, %.3lf, %.3lf)\n", i+1, x, y, z));
 
         means[index] = x;
         means[index+1] = y;
         means[index+2] = z;
     }
 
-    printf("\n");
+    DEBUG_PRINTF(("\n"));
 
     /* update */
     iterations = 0;
@@ -258,7 +251,7 @@ int main(int argc, char **argv)
         /* determine the new means */
         done = 1;
         j = 0;
-        printf("\n");
+        DEBUG_PRINTF(("\n"));
         for (i = 0; i < num_clusters; ++i) {
             double cur_meanx, cur_meany, cur_meanz;
             int cluster_count = cluster_counts[i];
@@ -270,7 +263,7 @@ int main(int argc, char **argv)
                 cur_meany = RANDOM_DOUBLE(ymin, ymax);
                 cur_meanz = RANDOM_DOUBLE(zmin, zmax);
 
-                printf("New random mean #%d: (%.3lf, %.3lf, %.3lf)\n", i+1, cur_meanx, cur_meany, cur_meanz);
+                DEBUG_PRINTF(("New random mean #%d: (%.3lf, %.3lf, %.3lf)\n", i+1, cur_meanx, cur_meany, cur_meanz));
 
                 means[index] = cur_meanx;
                 means[index+1] = cur_meany;
@@ -297,15 +290,22 @@ int main(int argc, char **argv)
                 means[index+2] = cur_meanz;
             }
 
-            printf("Mean %d: (%.3lf, %.3lf, %.3lf)\n", i+1, cur_meanx, cur_meany, cur_meanz);
+            DEBUG_PRINTF(("Mean %d: (%.3lf, %.3lf, %.3lf)\n", i+1, cur_meanx, cur_meany, cur_meanz));
         }
 
-        printf("Completed iteration: %d\n", ++iterations);
+        ++iterations;
     } while (!done);
 
+    printf("\nFINAL MEANS\n");
+    printf("===========\n");
+    for (i = 0; i < num_clusters; ++i) {
+        index = i * 3;
+        printf("Mean #%d: %.3lf, %.3lf, %.3lf\n", i, means[index], means[index+1], means[index+2]);
+    }
     printf("\nTOTAL ITERATIONS: %d\n", iterations);
 
     /* output our clusters */
+#ifdef OUTPUT_FILES
     if (!(fps = malloc(sizeof(*fps) * num_clusters))) {
         printf("Unable to allocate memory for output files.\n");
         goto CLEANUP;
@@ -336,6 +336,7 @@ int main(int argc, char **argv)
     cleanup_files(fps, num_clusters);
 
 CLEANUP: /* cleanup and exit */
+#endif /* OUTPUT_FILES */
     free(clusters);
     free(cluster_counts);
     free(means);
