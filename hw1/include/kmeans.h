@@ -1,6 +1,12 @@
 #ifndef KMEANS_H
 #define KMEANS_H
 
+#include <math.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+
 #ifndef M_PI
 # define M_PI 3.14159265358979323846264338327
 #endif
@@ -11,7 +17,7 @@
 
 #define RANDOM_DOUBLE(min, max) ((double)(min) + (double)rand() / RAND_MAX * ((double)(max) - (double)(min)))
 
-#ifndef NOPRINTF 
+#ifndef NOPRINT 
 # define DEBUG_PRINTF(x) printf x
 #else
 # define DEBUG_PRINTF(x) do {} while (0)

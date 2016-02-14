@@ -1,8 +1,3 @@
-#include <math.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <time.h>
 #include "kmeans.h"
 
 void print_usage()
@@ -30,7 +25,7 @@ int main(int argc, char **argv)
     double xmin, xmax, ymin, ymax, zmin, zmax;
     double *sums, *means;
     FILE **fps, *fp;
-#ifdef OUTPUT_FILES
+#ifdef OUTPUTFILES
     char fname[255];
 #endif
 
@@ -251,7 +246,6 @@ int main(int argc, char **argv)
         /* determine the new means */
         done = 1;
         j = 0;
-        DEBUG_PRINTF(("\n"));
         for (i = 0; i < num_clusters; ++i) {
             double cur_meanx, cur_meany, cur_meanz;
             int cluster_count = cluster_counts[i];
@@ -290,10 +284,10 @@ int main(int argc, char **argv)
                 means[index+2] = cur_meanz;
             }
 
-            DEBUG_PRINTF(("Mean %d: (%.3lf, %.3lf, %.3lf)\n", i+1, cur_meanx, cur_meany, cur_meanz));
+            printf("Mean %d: (%.3lf, %.3lf, %.3lf)\n", i+1, cur_meanx, cur_meany, cur_meanz);
         }
 
-        ++iterations;
+        printf("Iterations: %d\n\n", ++iterations);
     } while (!done);
 
     printf("\nFINAL MEANS\n");
@@ -305,7 +299,7 @@ int main(int argc, char **argv)
     printf("\nTOTAL ITERATIONS: %d\n", iterations);
 
     /* output our clusters */
-#ifdef OUTPUT_FILES
+#ifdef OUTPUTFILES
     if (!(fps = malloc(sizeof(*fps) * num_clusters))) {
         printf("Unable to allocate memory for output files.\n");
         goto CLEANUP;
@@ -336,7 +330,7 @@ int main(int argc, char **argv)
     cleanup_files(fps, num_clusters);
 
 CLEANUP: /* cleanup and exit */
-#endif /* OUTPUT_FILES */
+#endif /* OUTPUTFILES */
     free(clusters);
     free(cluster_counts);
     free(means);

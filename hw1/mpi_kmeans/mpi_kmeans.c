@@ -1,10 +1,5 @@
-#include <math.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <time.h>
-#include <mpi.h>
 #include "kmeans.h"
+#include <mpi.h>
 
 void print_usage()
 {
@@ -156,7 +151,7 @@ int main(int argc, char **argv)
     }
 
     slice = malloc(sizeof(*slice) * slice_size * 3);
-    printf("NODE #%d | Size: %d\n", rank, slice_size);
+    DEBUG_PRINTF(("NODE #%d | Size: %d\n", rank, slice_size));
 
     /* convert from LBR to XYZ */
     MPI_Scatterv(
@@ -223,20 +218,20 @@ int main(int argc, char **argv)
         sums = malloc(sizeof(*sums) * num_clusters * 3);
 
         srand(time(NULL));
-        printf("X: (%lf, %lf) | Y: (%lf, %lf) | Z: (%lf, %lf)\n", xming, xmaxg, yming, ymaxg, zming, zmaxg);
+        DEBUG_PRINTF(("X: (%lf, %lf) | Y: (%lf, %lf) | Z: (%lf, %lf)\n", xming, xmaxg, yming, ymaxg, zming, zmaxg));
         for (i = 0; i < num_clusters; ++i) {
             index = i * 3;
             x = RANDOM_DOUBLE(xming, xmaxg);
             y = RANDOM_DOUBLE(yming, ymaxg);
             z = RANDOM_DOUBLE(zming, zmaxg);
 
-            printf("\tMean #%d: (%.3lf, %.3lf, %.3lf)\n", i+1, x, y, z);
+            DEBUG_PRINTF(("\tMean #%d: (%.3lf, %.3lf, %.3lf)\n", i+1, x, y, z));
 
             means[index] = x;
             means[index+1] = y;
             means[index+2] = z;
         }
-        printf("\n");
+        DEBUG_PRINTF(("\n"));
     }
 
     /* synchronize the starting means */
@@ -327,8 +322,6 @@ int main(int argc, char **argv)
         /* TODO: DISTRUBTE THIS? */
         if (rank == 0) {
             done = 1;
-            ++iterations;
-            printf("\n");
             for (i = 0; i < num_clusters; ++i) {
                 double cur_meanx, cur_meany, cur_meanz;
                 int cluster_count = cluster_counts[i];
@@ -367,8 +360,10 @@ int main(int argc, char **argv)
                     means[index+2] = cur_meanz;
                 }
 
-                DEBUG_PRINTF(("Mean %d: (%.3lf, %.3lf, %.3lf)\n", i+1, cur_meanx, cur_meany, cur_meanz));
+                printf("Mean %d: (%.3lf, %.3lf, %.3lf)\n", i+1, cur_meanx, cur_meany, cur_meanz);
             }
+
+            printf("Iteration: %d\n\n", ++iterations);
         }
 
         /* send out the new means */
@@ -398,7 +393,7 @@ int main(int argc, char **argv)
     );
 
     if (rank == 0) {
-#ifdef OUTPUT_FILES
+#ifdef OUTPUTFILES
         char fname[255];
 #endif
 
@@ -413,7 +408,7 @@ int main(int argc, char **argv)
         /* print out the number of iterations */
         printf("\nTOTAL ITERATIONS: %d\n", iterations);
 
-#ifdef OUTPUT_FILES
+#ifdef OUTPUTFILES
         /* output our clusters */
         if (!(fps = malloc(sizeof(*fps) * num_clusters))) {
             printf("Unable to allocate memory for output files.\n");
@@ -443,10 +438,10 @@ int main(int argc, char **argv)
 
         /* cleanup our files */
         cleanup_files(fps, num_clusters);
-#endif /* OUTPUT_FILES */
+#endif /* OUTPUTFILES */
     }
 
-#ifdef OUTPUT_FILES
+#ifdef OUTPUTFILES
 CLEANUP: /* cleanup and exit */
 #endif
     free(clusters);
