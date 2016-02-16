@@ -54,8 +54,7 @@ def download(url, dir=''):
     filesize = int(meta.getheaders("Content-Length")[0])
 
     # see if we've already downloaded
-    if os.path.exists(filename) and os.path.isfile(filename) \
-                and os.path.getsize(filename) == filesize:
+    if os.path.exists(filename) or os.path.exists(filename[:-3]):
         print "File already downloaded. Skipping %s" % (filename)
         return True
 
@@ -86,6 +85,15 @@ def download(url, dir=''):
     return filesize == filesize_dl
 
 if __name__ == '__main__':
+    import argparse
+
+    parser = argparse.ArgumentParser(description='Download genome files for UND CS532 homework 2')
+    parser.add_argument('--count', type=int, default='0', help='max number of files to download (<=0 for all)')
+
+    args = parser.parse_args()
+    if args.count <= 0:
+        args.count = 0
+
     # create our data directory
     dir = os.path.dirname(os.path.realpath(__file__))
     dir = os.path.join(dir, 'data')
@@ -93,9 +101,17 @@ if __name__ == '__main__':
         os.makedirs(dir)
 
     # download all the read files
+    i = 0
     for num in READ_URL_NUMS:
+        if args.count and i == args.count:
+            break
         download("%s/%s/%s.fastq.gz" % (READ_URL_BASE, num, num), dir)
+        i += 1
 
     # download all the chromosome files
+    i = 0
     for num in CHRM_URL_NUMS:
+        if args.count and i == args.count:
+            break
         download("%s/%s.fa.gz" % (CHRM_URL_BASE, num), dir)
+        i += 1
