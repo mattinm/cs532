@@ -2,6 +2,9 @@
 #include <iostream>
 #include <mpi.h>
 #include <unordered_map>
+#include <vector>
+
+#define READ_LEN    40
 
 #define ARG_NONE    0
 #define ARG_CHR     1
@@ -17,8 +20,8 @@ using namespace std;
  * @param read reference to the vector of read filenames
  */
 bool parse_args( int argc, char **argv,
-                 std::vector<std::string> &chr,
-                 std::vector<std::string> &read )
+                 vector<string> &chr,
+                 vector<string> &read )
 {
     int current = ARG_NONE;
     int complete = ARG_NONE;
@@ -62,6 +65,20 @@ bool parse_args( int argc, char **argv,
     return complete & ARG_CHR & ARG_READ;
 }
 
+bool isValid(char c)
+{
+    return c == 'N' || c == 'A' || c == 'C' || c == 'G' || c == 'T';
+}
+
+bool nCount(char *s, int n)
+{
+    int n_count = 0;
+    for (int i = 0; i < n; ++i)
+        if (s[i] == 'N') n_count++;
+
+    return n_count;
+}
+
 int main(int argc, char **argv)
 {
     // initialize MPI
@@ -79,7 +96,7 @@ int main(int argc, char **argv)
         vector<string> chr_files;
         vector<string> read_files;
 
-        if (!parse_args(argc, argv, &chr, &read)) {
+        if (!parse_args(argc, argv, chr_files, read_files)) {
             cout << "Usage: ./genome --chr CHR_FILE [CHR_FILE ...] --read READ_FILE [READ_FILE ...]" << endl;
 
             MPI_Abort(MPI_COMM_WORLD, 1);
@@ -88,11 +105,11 @@ int main(int argc, char **argv)
 
         // read in our read files
         vector<char> reads;
-        string filename;
         fstream fs;
         char buf[256];
-        for (filename : read) {
+        for (auto it = read_files.begin(); it != read_files.end(); ++it) {
             // open the file
+            string filename = *it;
             fs.open(filename, fstream::in);
             if (!fs.is_open()) {
                 cout << "Failed to open file: " << filename;
@@ -103,22 +120,23 @@ int main(int argc, char **argv)
             // read in all our required lines
             while (1) {
                 fs.getline(buf, 256);
+
+                // terminate if not good read
                 if (!fs.good()) break;
 
-
+                // insert the line (WITH '\0') to our reads vector
+                if (isValid(*buf) && nCount(buf, READ_LEN) < n_reads)
+                    reads.insert(reads.end(), buf, buf+READ_LEN+1);
             }
 
+            // close the file and go to the next one
             fs.close();
         }
+
+        // print out our reads
+        cout << "Reads length: " << reads.size() << endl;
     }
 
-    unordered_map<string, vector<int, int>> counts;
-
-    /* read in all the read files */
-    if (rank == 0) {
-        string read;
-        
-    }
-
+    MPI_Finalize();
     return 0; 
 }
