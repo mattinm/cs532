@@ -153,11 +153,43 @@ void addToReadmap(char *s, int len, unordered_map<string, int> &readmap)
         readmap.insert({{str, 1}});
 }
 
+void addToChrMap(char *s, int len, int index, const unordered_map<string, int> &readmap, vector<int> &indexes, vector<int> &counts)
+{
+    int nloc = nLocation(s, len);
+    if (nloc >= 0) {
+        char *s2 = new char[len];
+        memcpy(s2, s, len);
+        
+        s2[nloc] = 'A';
+        addToChrMap(s2, len, index, readmap, indexes, counts);
+
+        s2[nloc] = 'C';
+        addToChrMap(s2, len, index, readmap, indexes, counts);
+
+        s2[nloc] = 'G';
+        addToChrMap(s2, len, index, readmap, indexes, counts);
+
+        s2[nloc] = 'T';
+        addToChrMap(s2, len, index, readmap, indexes, counts);
+
+        delete[] s2;
+        return;
+    }
+
+    string str(s, len);
+    auto it = readmap.find(str);
+    if (it != readmap.end()) {
+        indexes.push_back(index);
+        counts.push_back(it->second);
+    }
+}
+
 /** Prints out the usage of the program. */
 void print_usage()
 {
-    cout << "Usage: ./genome N_READS N_CHR --chr CHR_FILE [CHR_FILE ...] --read READ_FILE [READ_FILE ...]" << endl;
+    cout << "Usage: ./genome OUTPUT_FILE N_READS N_CHR --chr CHR_FILE [CHR_FILE ...] --read READ_FILE [READ_FILE ...]" << endl;
     cout << "============================================================================================" << endl;
+    cout << "OUTPUT_FILE   file to output to" << endl;
     cout << "N_READS       max number of N's in read files" << endl;
     cout << "CHR_READS     max number of N's in chr files" << endl;
     cout << "CHR_FILE      path to a chr file" << endl;
@@ -178,18 +210,22 @@ int main(int argc, char **argv)
     int n_chr = 0;              // n's allowed in chrs
     int chr_count;              // number of chr files
     int readslen;
+    string outfilename;
     vector<string> chr_files;   // chr file names (all ranks need this)
     string reads;
+    fstream fs;
 
     if (rank == 0) {
         // consume the first arg
         --argc; ++argv;
 
-        if (argc < 6) {
+        if (argc < 7) {
             print_usage();
             MPI_Abort(MPI_COMM_WORLD, 1);
             return 1;
         }
+
+        outfilename = *argv++;
 
         // read in the n-max for reads and chr
         if ((n_reads = strtol(*argv++, NULL, 10)) < 0) {
@@ -205,7 +241,7 @@ int main(int argc, char **argv)
 
         // parse our file args
         vector<string> read_files;
-        if (!parse_args(argc-2, argv, chr_files, read_files)) {
+        if (!parse_args(argc-3, argv, chr_files, read_files)) {
             print_usage();
             MPI_Abort(MPI_COMM_WORLD, 1);
             return 1;
@@ -216,7 +252,6 @@ int main(int argc, char **argv)
         cout << "Count: " << read_files.size() << endl;
 
         // read in our read files
-        fstream fs;
         char buf[BUF_LEN];
         for (auto it = read_files.begin(); it != read_files.end(); ++it) {
             // open the file
@@ -239,7 +274,7 @@ int main(int argc, char **argv)
                 if (strlen(buf) != READ_LEN) continue;
 
                 stringToUpper(buf, READ_LEN);
-                if (isValid(buf, READ_LEN) && nCount(buf, READ_LEN) < n_reads) {
+                if (isValid(buf, READ_LEN) && nCount(buf, READ_LEN) <= n_reads) {
                     reads.append(buf, READ_LEN);
                     reads.push_back('\0');
                 }
@@ -292,6 +327,8 @@ int main(int argc, char **argv)
             0,
             MPI_COMM_WORLD
     );
+
+    reads.clear();
 
     // fill an unordered map with the strings
     unordered_map<string, int> readmap;
@@ -346,35 +383,37 @@ int main(int argc, char **argv)
         vector<int> indexes;
         vector<int> counts;
 
+        if (rank == 0) {
+            fs.open(outfilename, fstream::out);
+            if (!fs.is_open()) {
+                cout << "FAILED TO OPEN " << outfilename << endl;
+            }
+        }
+
         // keep reading in until end of file
         do {
             // process each READ_LEN amount from our buffer
+            stringToUpper(buf, readcount);
             icount = readcount - READ_LEN;
             for (int j = 0; j < icount; ++j) {
                 // if our last was valid, we only need to check the next
                 // character; otherwise, we need to check all of them
                 if (lastvalid) {
-                    if (isValid(&buf[j+READ_LEN-1], 1) && nCount(&buf[j], READ_LEN) < n_chr) {
+                    if (isValid(&buf[j+READ_LEN-1], 1) && nCount(&buf[j], READ_LEN) <= n_chr) {
                         lastvalid = true;
                     } else {
                         lastvalid = false;
                     }
-                } else if (isValid(&buf[j], READ_LEN) && nCount(&buf[j], READ_LEN) < n_chr) {
+                } else if (isValid(&buf[j], READ_LEN) && nCount(&buf[j], READ_LEN) <= n_chr) {
                     lastvalid = true;
                 } else {
                     lastvalid = false;
                 }
 
-                // if this character is valid, check it against all of our entries
-                // and add the count if found
-                if (lastvalid) {
-                    string s(&buf[j], READ_LEN);
-                    auto it = readmap.find(s);
-                    if (it != readmap.end()) {
-                        indexes.push_back(j);
-                        counts.push_back(it->second);
-                    }
-                }
+                // if we have a valid string, use the recursive addToChrMap function
+                // to check Ns and update our indexes and counts
+                if (lastvalid)
+                    addToChrMap(&buf[j], READ_LEN, bytesread + j, readmap, indexes, counts);
             }
 
             if (bytesread >= filesize) break;
@@ -403,6 +442,7 @@ int main(int argc, char **argv)
             int actualcount = 0;
             map<int, int> curmap; 
 
+            cout << endl << "Received " << indexes.size() << " results from process #0" << endl;
             for (auto it = indexes.begin(), it2 = counts.begin(); it != indexes.end(); ++it, ++it2)
                 curmap.insert(pair<int, int>(*it, *it2));
 
@@ -412,8 +452,10 @@ int main(int argc, char **argv)
                 MPI_Recv(rindexes, max, MPI_INT, MPI_ANY_SOURCE, 0, MPI_COMM_WORLD, &status);
                 MPI_Recv(rcounts, max, MPI_INT, status.MPI_SOURCE, 0, MPI_COMM_WORLD, &status);
 
-                // add the data into our map
                 MPI_Get_count(&status, MPI_INT, &actualcount);
+                cout << "Recieved " << actualcount << " results from process #" << status.MPI_SOURCE << endl;
+
+                // add the data into our map
                 for (int j = 0; j < actualcount; ++j) {
                     auto it = curmap.find(rindexes[j]);
                     if (it != curmap.end())
@@ -424,8 +466,12 @@ int main(int argc, char **argv)
             }
 
             // print out our findings
-            for (auto it = curmap.begin(); it != curmap.end(); ++it)
-                cerr << chr_files.at(i).c_str() << ", " << it->first << ", " << it->second << endl;
+            for (auto it = curmap.begin(); it != curmap.end(); ++it) {
+                if (fs.is_open())
+                    fs << chr_files.at(i).c_str() << ", " << it->first << ", " << it->second << endl;
+                else
+                    cerr << chr_files.at(i).c_str() << ", " << it->first << ", " << it->second << endl;
+            }
 
             // free our memory
             delete[] rindexes;
@@ -437,9 +483,12 @@ int main(int argc, char **argv)
         MPI_File_close(&fh);
     }
 
+    // free memory
     delete[] slice_szs;
     delete[] displacements;
     delete[] slice;
+
+    // finalize and return
     MPI_Finalize();
     return 0; 
 }
