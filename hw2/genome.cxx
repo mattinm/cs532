@@ -2,6 +2,7 @@
 #include <cstring>
 #include <fstream>
 #include <iostream>
+#include <map>
 #include <mpi.h>
 #include <unordered_map>
 #include <vector>
