@@ -2,6 +2,7 @@
 #include <cstring>
 #include <fstream>
 #include <iostream>
+#include <map>
 #include <mpi.h>
 #include <unordered_map>
 #include <vector>
@@ -317,7 +318,7 @@ int main(int argc, char **argv)
     // scatter out our slices
     char *slice = new char[slice_szs[rank]];
     MPI_Scatterv(
-            reads.data(),
+            (void*)reads.data(),
             slice_szs,
             displacements,
             MPI_CHAR,

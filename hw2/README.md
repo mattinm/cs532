@@ -1,7 +1,8 @@
 # Installation
 
 From the root directory (the same directory as this file),
-run the command `cmake .` followed by `cmake --build .`.
+run the command `cmake .` followed by `cmake --build .` or
+`make`, depending on OS.
 
 This will create the /build folder and populate it with the
 binary for both `genome`.
