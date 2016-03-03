@@ -5,3 +5,10 @@ CMakeFiles/
 CMakeCache.txt
 Makefile
 *.cmake
+*~
+*.swp
+
+*.vcxproj*
+Win32/
+*.dir/
+*.sln
