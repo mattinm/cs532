@@ -1,0 +1,10 @@
+cmake_minimum_required (VERSION 2.6)
+project (DISPLAY_IMAGE_CUDA)
+
+find_package(CUDA)
+if (CUDA_FOUND)
+    cuda_add_executable(heat_diffusion_cuda heat_diffusion_cuda.cu)
+    target_link_libraries(heat_diffusion_cuda ${CUDA_LIBRARIES} ${CUSTOM_LIBRARIES})
+else (CUDA_FOUND)
+    message(WARNING "CUDA not found on the system. Skipping CUDA build.")
+endif (CUDA_FOUND)
