@@ -3,7 +3,8 @@
  */
 
 #ifdef _WIN32
-#include <windows.h>
+# define WIN32_LEAN_AND_MEAN
+# include <windows.h>
 #endif
 
 #ifdef __APPLE__
@@ -245,9 +246,12 @@ int initialize(int argc, char **argv, void (*_updatefunc)(void), void (*_cleanup
     memset(next_heat_matrix, 0, arr_size * sizeof(float));
 
     // make some areas to diffuse
-    for (int i = x_cells / 3 ; i <= (int)(x_cells * 2 / 3); i++) {
-        for (int j = y_cells / 3 ; j <= (int)(y_cells * 2 / 3); j++) {
-            for (int k = z_cells / 3; k <= (int)(z_cells * 2 / 3); k++) {
+    int xmax = x_cells * 2 / 3;
+    int ymax = y_cells * 2 / 3;
+    int zmax = z_cells < 10 ? z_cells : 10;
+    for (int i = x_cells / 3 ; i <= xmax; i++) {
+        for (int j = y_cells / 3 ; j <= ymax; j++) {
+            for (int k = 0; k <= zmax ; k++) {
                 heat_matrix[XYZINDEX(i, j, k, x_cells, y_cells)] = 1.0;
             }
         }
