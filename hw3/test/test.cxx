@@ -165,11 +165,18 @@ void render(void)
     // rotate the camera and update the rotation
     glRotatef(cam_angle, 0.0f, 1.0f, 0.0f);
 
-    // draw
-    glBegin(GL_TRIANGLES);
-        glVertex3f(-2.0f, -2.0f, -5.0f);
-        glVertex3f( 2.0f,  0.0f, -5.0f);
-        glVertex3f( 0.0f,  2.0f, -5.0f);
+    // draw some points
+    glPointSize(2.0f);
+    glBegin(GL_POINTS);
+    int xmax = 100, ymax = 100, zmax = 10;
+    for (int x = 0; x < xmax; ++x) {
+        for (int y = 0; y < ymax; ++y) {
+            for (int z = 0; z < zmax; ++z) {
+                glColor3f(x / (float)xmax, y / (float)ymax, z / (float)zmax);
+                glVertex3f(-1.0f + 2.0f * x / (float)xmax, 0.0f + 2.0f * y / (float)ymax, -3.0f + 6.0f * z / (float)zmax);
+            }
+        }
+    }
     glEnd();
 
     // swap buffers to draw
