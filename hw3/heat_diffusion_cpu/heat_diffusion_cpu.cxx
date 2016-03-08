@@ -36,19 +36,19 @@ void thread_update(int xmin, int xmax, int ymin, int ymax, int zmin, int zmax)
                 sum += heat_matrix[XYZINDEX(i, j, k, x_cells, y_cells)];
 
                 if (i > 0)
-                    sum += heat_matrix[XYZINDEX(i-1, j, k, x_cells, y_cells)];
+                    sum += heat_matrix[position-1];
                 if (i < xsize)
-                    sum += heat_matrix[XYZINDEX(i+1, j, k, x_cells, y_cells)];
+                    sum += heat_matrix[position+1];
 
                 if (j > 0)
-                    sum += heat_matrix[XYZINDEX(i, j-1, k, x_cells, y_cells)];
+                    sum += heat_matrix[position-x_cells];
                 if (j < ysize)
-                    sum += heat_matrix[XYZINDEX(i, j+1, k, x_cells, y_cells)];
+                    sum += heat_matrix[position+x_cells];
 
                 if (k > 0)
-                    sum += heat_matrix[XYZINDEX(i, j, k-1, x_cells, y_cells)];
+                    sum += heat_matrix[position-xy_cells];
                 if (k < zsize)
-                    sum += heat_matrix[XYZINDEX(i, j, k+1, x_cells, y_cells)];
+                    sum += heat_matrix[position+xy_cells];
 
                 next_heat_matrix[position] = sum / 7.0f;
 

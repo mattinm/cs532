@@ -47,7 +47,7 @@ void (*updatefunc)(void) = NULL;
 void (*cleanupfunc)(void) = NULL;
 
 //this is the size of the heat matrix in the x, y and z dimensions
-int x_cells, y_cells, z_cells, arr_size;
+int x_cells, y_cells, z_cells, xy_cells, arr_size;
 
 //This will hold the heat values for every cell in the matrix
 float *heat_matrix, *next_heat_matrix;
@@ -308,7 +308,8 @@ int initialize(int argc, char **argv, void (*_updatefunc)(void), void (*_cleanup
     }
 
     // initilize the matrices to zero
-    arr_size = x_cells * y_cells * z_cells;
+    xy_cells = x_cells * y_cells;
+    arr_size = xy_cells * z_cells;
     heat_matrix = new float[arr_size];
     memset(heat_matrix, 0, arr_size * sizeof(float));
 
