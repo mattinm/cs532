@@ -6,6 +6,9 @@
 
 #ifdef STD_THREADING
 # include <thread>
+# ifndef _WIN32
+#  include <unistd.h>
+# endif
 #endif
 
 void cleanup()
@@ -17,7 +20,8 @@ void cleanup()
 void thread_update(int xmin, int xmax, int ymin, int ymax, int zmin, int zmax)
 {
     int temp = 0, position = 0;
-    float divisor = 27.0f;
+    //float divisor = 27.0f; // diagonals
+    float divisor = 7.0f; // sides only
     for (int i = xmin; i < xmax; ++i) {
         for (int j = ymin; j < ymax; ++j) {
             for (int k = zmin; k < zmax; ++k) {
@@ -30,7 +34,6 @@ void thread_update(int xmin, int xmax, int ymin, int ymax, int zmin, int zmax)
                 float sum = 0.0f;
 
                 // just the sides 
-                /*
                 sum += heat_matrix[XYZINDEX(i, j, k, x_cells, y_cells)];
                 sum += heat_matrix[XYZINDEX(i-1, j, k, x_cells, y_cells)];
                 sum += heat_matrix[XYZINDEX(i+1, j, k, x_cells, y_cells)];
@@ -38,10 +41,10 @@ void thread_update(int xmin, int xmax, int ymin, int ymax, int zmin, int zmax)
                 sum += heat_matrix[XYZINDEX(i, j+1, k, x_cells, y_cells)];
                 sum += heat_matrix[XYZINDEX(i, j, k-1, x_cells, y_cells)];
                 sum += heat_matrix[XYZINDEX(i, j, k+1, x_cells, y_cells)];
-                */
 
 
                 // also diagonals and self
+                /*
                 temp = XYZINDEX(i, j-1, k, x_cells, y_cells);
                 sum += heat_matrix[temp-1];
                 sum += heat_matrix[temp];
@@ -86,6 +89,7 @@ void thread_update(int xmin, int xmax, int ymin, int ymax, int zmin, int zmax)
                 sum += heat_matrix[temp-1];
                 sum += heat_matrix[temp];
                 sum += heat_matrix[temp+1];
+                */
 
                 next_heat_matrix[position] = sum / divisor;
 
@@ -101,64 +105,31 @@ void update()
 #ifndef STD_THREADING
     thread_update(1, x_cells - 1, 1, y_cells - 1, 1, z_cells - 1);
 #else
-    int numthreads = std::thread::hardware_concurrency() - 1;
-
+# ifndef _WIN32
+    int numthreads = sysconf(_SC_NPROCESSORS_ONLN) - 1;
+#  else
+    int numthreads = std::threads::hardware_concurrency() - 1;
+# endif
     int xsize = (x_cells - 1);
     int ysize = (y_cells - 1);
     int zsize = (z_cells - 1);
 
-    int xwidth = (xsize - 1) / (numthreads + 1);
-    int ywidth = (ysize - 1) / (numthreads + 1);
-    int zwidth = (zsize - 1) / (numthreads + 1);
+    int xwidth = (int)((xsize - 1) / (numthreads + 1));
 
-    int xmin = 1, ymin = 1, zmin = 1;
-    int xmax, ymax, zmax;
-
-    cout << "USING THREADS: " << (numthreads+1) << endl;
-
-    // serial way
-    for (int i = 0; i < numthreads; ++i) {
-        xmax = xmin + xwidth;
-        ymax = ymin + ywidth;
-        zmax = zmin + zwidth;
-        cout << "\tThread #" << (i+1) << ": (" << xmin << "-" << xmax << ", " << ymin << "-" << ymax << ", " << zmin << "-" << zmax << ")" << endl;
-        thread_update(xmin, xmax, ymin, ymax, zmin, zmax);
-        xmin = xmax;
-        ymin = ymax;
-        zmin = zmax;
-    }
-
-    xmax = xsize;
-    ymax = ysize;
-    zmax = zsize;
-    cout << "\tThread #" << (numthreads+1) << ": (" << xmin << "-" << xmax << ", " << ymin << "-" << ymax << ", " << zmin << "-" << zmax << ")" << endl;
-    thread_update(xmin, xmax, ymin, ymax, zmin, zmax);
-
-    // force a true update
-    //thread_update(1, xsize, 1, ysize, 1, zsize);
-
-    return;
+    int xmin = 1;
+    int xmax;
 
     // create our threads
     std::thread *threads = new std::thread[numthreads];
     for (int i = 0; i < numthreads; ++i) {
         xmax = xmin + xwidth;
-        ymax = ymin + ywidth;
-        zmax = zmin + zwidth;
 
-        cout << "\tThread #" << (i+1) << ": (" << xmin << "-" << xmax << ", " << ymin << "-" << ymax << ", " << zmin << "-" << zmax << ")" << endl;
+        threads[i] = std::thread(thread_update, xmin, xmax, 1, ysize, 1, zsize);
 
-        threads[i] = std::thread(thread_update, xmin, xmax, ymin, ymax, zmin, zmax);
         xmin = xmax;
-        ymin = ymax;
-        zmin = zmax;
     }
 
-    xmax = xsize;
-    ymax = ysize;
-    zmax = zsize;
-    cout << "\tThread #" << (numthreads+1) << ": (" << xmin << "-" << xmax << ", " << ymin << "-" << ymax << ", " << zmin << "-" << zmax << ")" << endl;
-    thread_update(xmin, xmax, ymin, ymax, zmin, zmax);
+    thread_update(xmin, xsize, 1, ysize, 1, zsize);
 
     // join our threads
     for (int i = 0; i < numthreads; ++i)

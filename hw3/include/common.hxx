@@ -182,7 +182,7 @@ void display()
                 //set the red color of the point to the heat value (which should be between 0.0 and 1.0)
                 float redness = next_heat_matrix[XYZINDEX(i, j, k, x_cells, y_cells)];
                 if (!redness) continue;
-                glColor3f(next_heat_matrix[XYZINDEX(i, j, k, x_cells, y_cells)], 0.0f, 0.0f);
+                glColor3f(redness, 0.0f, 0.0f);
 
                 //display the point on a grid
                 float x_pos = -half_width + (i * width / x_cells);

@@ -33,5 +33,5 @@ else()
 endif()
 
 include_directories(${CMAKE_SOURCE_DIR}/include)
-add_subdirectory(heat_diffusion_cuda)
+#add_subdirectory(heat_diffusion_cuda)
 add_subdirectory(heat_diffusion_cpu)
