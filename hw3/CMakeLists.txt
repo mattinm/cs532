@@ -9,8 +9,12 @@ set(LIBRARY_OUTPUT_PATH ${CMAKE_BINARY_DIR})
 include_directories(${CMAKE_SOURCE_DIR}/include)
 
 include (CheckCXXCompilerFlag)
-CHECK_CXX_COMPILER_FLAG(-std=c++11 COMPILER_SUPPORTS_CXX11)
-CHECK_CXX_COMPILER_FLAG(-std=c++0x COMPILER_SUPPORTS_CXX0x)
+if (WIN32)
+    set(COMPILER_SUPPORTS_CXX11 1)
+else()
+    CHECK_CXX_COMPILER_FLAG(-std=c++11 COMPILER_SUPPORTS_CXX11)
+    CHECK_CXX_COMPILER_FLAG(-std=c++0x COMPILER_SUPPORTS_CXX0x)
+endif()
 
 # Win32 needs to have the Win32\GLUT folder specified
 if (WIN32)

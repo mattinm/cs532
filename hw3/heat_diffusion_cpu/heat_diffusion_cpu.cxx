@@ -22,7 +22,7 @@ void thread_update(int xmin, int xmax, int ymin, int ymax, int zmin, int zmax)
     int xsize = x_cells - 1;
     int ysize = y_cells - 1;
     int zsize = z_cells - 1;
-    
+
     int temp = 0, position = 0;
     float sum;
 
@@ -32,7 +32,7 @@ void thread_update(int xmin, int xmax, int ymin, int ymax, int zmin, int zmax)
                 position = XYZINDEX(i, j, k, x_cells, y_cells);
                 sum = 0.0f;
 
-                // just the sides 
+                // just the sides
                 sum += heat_matrix[XYZINDEX(i, j, k, x_cells, y_cells)];
 
                 if (i > 0)
@@ -67,7 +67,7 @@ void update()
 # ifndef _WIN32
     int numthreads = sysconf(_SC_NPROCESSORS_ONLN) - 1;
 #  else
-    int numthreads = std::threads::hardware_concurrency() - 1;
+    int numthreads = std::thread::hardware_concurrency() - 1;
 # endif
     int xwidth = x_cells / (numthreads + 1);
 

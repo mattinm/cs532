@@ -69,20 +69,20 @@ void onExit(void)
 
 /**
  *  This code handles the camera, you can ignore it.
- *  It lets you zoom in (by holding control, click and moving the mouse), move left/right up/down by 
+ *  It lets you zoom in (by holding control, click and moving the mouse), move left/right up/down by
  *  holding shift, click and moving the mouse, and rotate by moving the mouse.
  */
 int     ox                  = 0;
 int     oy                  = 0;
-int     buttonState         = 0; 
-float   camera_trans[]      = {0, 0, -10};
-float   camera_rot[]        = {0, -0.2, 0};
-float   camera_trans_lag[]  = {0, 0, -10};
-float   camera_rot_lag[]    = {0, -0.2, 0};
+int     buttonState         = 0;
+float   camera_trans[]      = {0.0f, 0.0f, -10.0f};
+float   camera_rot[]        = {0.0f, -0.2f, 0.0f};
+float   camera_trans_lag[]  = {0.0f, 0.0f, -10.0f};
+float   camera_rot_lag[]    = {0.0f, -0.2f, 0.0f};
 const float inertia         = 0.1f;
 
 /* Reshapes the GL projection. */
-void reshape(int w, int h) 
+void reshape(int w, int h)
 {
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
@@ -93,7 +93,7 @@ void reshape(int w, int h)
 }
 
 /* Handles mouse button events */
-void mouse_button(int button, int state, int x, int y) 
+void mouse_button(int button, int state, int x, int y)
 {
     int mods;
 
