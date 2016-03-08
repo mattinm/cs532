@@ -62,7 +62,8 @@ unsigned long framenum = 0L;
 void onExit(void)
 {
     delete heat_matrix;
-    delete next_heat_matrix;
+    if (next_heat_matrix)
+        delete next_heat_matrix;
     (*cleanupfunc)();
 }
 
@@ -152,7 +153,8 @@ void display()
 
     // call the update function
     (*updatefunc)();
-    cout << "Frame #" << framenum++ << endl;
+    framenum++;
+    //cout << "Frame #" << framenum++ << endl;
 
     // setup the camera
     for (int c = 0; c < 3; ++c) {
@@ -169,9 +171,9 @@ void display()
     static float width = 10.0f;
     static float half_width = width / 2.0f;
 
-    static float x_half = half_width / x_cells;
-    static float y_half = half_width / y_cells;
-    static float z_half = half_width / z_cells;
+    //static float x_half = half_width / x_cells;
+    //static float y_half = half_width / y_cells;
+    //static float z_half = half_width / z_cells;
 
     // draw the points for each point in the heat matrix
     glBegin(GL_POINTS);
@@ -180,7 +182,13 @@ void display()
         for (int j = 1; j < (y_cells-1); j++) {
             for (int k = 1; k < (z_cells-1); k++) {
                 //set the red color of the point to the heat value (which should be between 0.0 and 1.0)
-                float redness = next_heat_matrix[XYZINDEX(i, j, k, x_cells, y_cells)];
+
+                float redness;
+                if (next_heat_matrix)
+                    redness = next_heat_matrix[XYZINDEX(i, j, k, x_cells, y_cells)];
+                else
+                    redness = heat_matrix[XYZINDEX(i, j, k, x_cells, y_cells)];
+
                 if (!redness) continue;
                 glColor3f(redness, 0.0f, 0.0f);
 
@@ -246,7 +254,13 @@ void display()
     glutPostRedisplay();
 
     //swap the pointers between heat_matrix and heat_matrix_next
-    swap_matrices(&heat_matrix, &next_heat_matrix);
+    if (next_heat_matrix)
+        swap_matrices(&heat_matrix, &next_heat_matrix);
+
+    if (framenum == 1000) {
+        cout << "Reached 1000 frames. Exiting." << endl;
+        exit(1);
+    }
 }
 
 /* Helper function to print usage. */
@@ -264,7 +278,7 @@ void usage(char *executable)
 }
 
 // helper function to initialize the data
-int initialize(int argc, char **argv, void (*_updatefunc)(void), void (*_cleanupfunc)(void))
+int initialize(int argc, char **argv, void (*_updatefunc)(void), void (*_cleanupfunc)(void), bool needsNext = true)
 {
     // default values
     window_width = 500;
@@ -296,9 +310,14 @@ int initialize(int argc, char **argv, void (*_updatefunc)(void), void (*_cleanup
     // initilize the matrices to zero
     arr_size = x_cells * y_cells * z_cells;
     heat_matrix = new float[arr_size];
-    next_heat_matrix = new float[arr_size];
     memset(heat_matrix, 0, arr_size * sizeof(float));
-    memset(next_heat_matrix, 0, arr_size * sizeof(float));
+
+    if (needsNext) {
+        next_heat_matrix = new float[arr_size];
+        memset(next_heat_matrix, 0, arr_size * sizeof(float));
+    } else {
+        next_heat_matrix = NULL;
+    }
 
     // make some areas to diffuse
     int xmax = x_cells * 1 / 3;

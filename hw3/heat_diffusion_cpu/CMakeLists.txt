@@ -2,8 +2,16 @@ cmake_minimum_required (VERSION 2.6)
 project (DISPLAY_IMAGE_CPU)
 
 CHECK_CXX_COMPILER_FLAG("-pthread" COMPILER_PTHREAD)
-if (COMPILER_PTHREAD)
-    #set(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS} "-pthread")
+
+if (COMPILER_SUPPORTS_CXX11)
+    add_definitions(-DSTD_THREADING)
+    set (CMAKE_CXX_FLAGS    "${CMAKE_CXX_FLAGS} -std=c++11")
+elseif (COMPILER_SUPPORTS_CXX0x)
+    add_definitions(-DSTD_THREADING)
+    set (CMAKE_CXX_FLAGS    "${CMAKE_CXX_FLAGS} -std=c++0x")
+else()
+    message (STATUS "The compiler ${CMAKE_CXX_COMPILER} has no C++11 support.
+    Skipping multithreading.")
 endif()
 
 if (COMPILER_SUPPORTS_CXX11 OR COMPILER_SUPPORTS_CXX0x)

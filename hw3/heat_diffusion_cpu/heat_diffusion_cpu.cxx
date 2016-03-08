@@ -24,19 +24,13 @@ void thread_update(int xmin, int xmax, int ymin, int ymax, int zmin, int zmax)
     int zsize = z_cells - 1;
     
     int temp = 0, position = 0;
+    float sum;
 
-    //float divisor = 27.0f; // diagonals
-    float divisor = 7.0f; // sides only
     for (int i = xmin; i < xmax; ++i) {
         for (int j = ymin; j < ymax; ++j) {
             for (int k = zmin; k < zmax; ++k) {
                 position = XYZINDEX(i, j, k, x_cells, y_cells);
-                if (heat_matrix[position] <= 0.001f) {
-                    next_heat_matrix[position] = 0.0f;
-                    continue;
-                }
-
-                float sum = 0.0f;
+                sum = 0.0f;
 
                 // just the sides 
                 sum += heat_matrix[XYZINDEX(i, j, k, x_cells, y_cells)];
@@ -56,56 +50,7 @@ void thread_update(int xmin, int xmax, int ymin, int ymax, int zmin, int zmax)
                 if (k < zsize)
                     sum += heat_matrix[XYZINDEX(i, j, k+1, x_cells, y_cells)];
 
-
-                // also diagonals and self
-                /*
-                temp = XYZINDEX(i, j-1, k, x_cells, y_cells);
-                sum += heat_matrix[temp-1];
-                sum += heat_matrix[temp];
-                sum += heat_matrix[temp+1];
-
-                temp += x_cells;
-                sum += heat_matrix[temp-1];
-                sum += heat_matrix[temp];
-                sum += heat_matrix[temp+1];
-
-                temp += x_cells;
-                sum += heat_matrix[temp-1];
-                sum += heat_matrix[temp];
-                sum += heat_matrix[temp+1];
-
-                temp = XYZINDEX(i, j-1, k-1, x_cells, y_cells);
-                sum += heat_matrix[temp-1];
-                sum += heat_matrix[temp];
-                sum += heat_matrix[temp+1];
-
-                temp += x_cells;
-                sum += heat_matrix[temp-1];
-                sum += heat_matrix[temp];
-                sum += heat_matrix[temp+1];
-
-                temp += x_cells;
-                sum += heat_matrix[temp-1];
-                sum += heat_matrix[temp];
-                sum += heat_matrix[temp+1];
-
-                temp = XYZINDEX(i, j-1, k+1, x_cells, y_cells);
-                sum += heat_matrix[temp-1];
-                sum += heat_matrix[temp];
-                sum += heat_matrix[temp+1];
-
-                temp += x_cells;
-                sum += heat_matrix[temp-1];
-                sum += heat_matrix[temp];
-                sum += heat_matrix[temp+1];
-
-                temp += x_cells;
-                sum += heat_matrix[temp-1];
-                sum += heat_matrix[temp];
-                sum += heat_matrix[temp+1];
-                */
-
-                next_heat_matrix[position] = sum / divisor;
+                next_heat_matrix[position] = sum / 7.0f;
 
                 if (next_heat_matrix[position] <= 0.001f)
                     next_heat_matrix[position] = 0.0f;
