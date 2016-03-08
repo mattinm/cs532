@@ -312,9 +312,9 @@ int initialize(int argc, char **argv, void (*_updatefunc)(void), void (*_cleanup
         }
     }
 
-    xmax = x_cells - 2;
-    ymax = y_cells - 2;
-    zmax = z_cells - 2;
+    xmax = x_cells - 1;
+    ymax = y_cells - 1;
+    zmax = z_cells - 1;
     for (int i = x_cells * 2 / 3; i <= xmax; ++i) {
         for (int j = y_cells * 1 / 3; j <= ymax; ++j) {
             for (int k = z_cells * 1 / 3; k <= zmax; ++k) {

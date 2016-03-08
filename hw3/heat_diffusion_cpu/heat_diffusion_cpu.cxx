@@ -19,7 +19,12 @@ void cleanup()
 /* Updates at each timestep */
 void thread_update(int xmin, int xmax, int ymin, int ymax, int zmin, int zmax)
 {
+    int xsize = x_cells - 1;
+    int ysize = y_cells - 1;
+    int zsize = z_cells - 1;
+    
     int temp = 0, position = 0;
+
     //float divisor = 27.0f; // diagonals
     float divisor = 7.0f; // sides only
     for (int i = xmin; i < xmax; ++i) {
@@ -35,12 +40,21 @@ void thread_update(int xmin, int xmax, int ymin, int ymax, int zmin, int zmax)
 
                 // just the sides 
                 sum += heat_matrix[XYZINDEX(i, j, k, x_cells, y_cells)];
-                sum += heat_matrix[XYZINDEX(i-1, j, k, x_cells, y_cells)];
-                sum += heat_matrix[XYZINDEX(i+1, j, k, x_cells, y_cells)];
-                sum += heat_matrix[XYZINDEX(i, j-1, k, x_cells, y_cells)];
-                sum += heat_matrix[XYZINDEX(i, j+1, k, x_cells, y_cells)];
-                sum += heat_matrix[XYZINDEX(i, j, k-1, x_cells, y_cells)];
-                sum += heat_matrix[XYZINDEX(i, j, k+1, x_cells, y_cells)];
+
+                if (i > 0)
+                    sum += heat_matrix[XYZINDEX(i-1, j, k, x_cells, y_cells)];
+                if (i < xsize)
+                    sum += heat_matrix[XYZINDEX(i+1, j, k, x_cells, y_cells)];
+
+                if (j > 0)
+                    sum += heat_matrix[XYZINDEX(i, j-1, k, x_cells, y_cells)];
+                if (j < ysize)
+                    sum += heat_matrix[XYZINDEX(i, j+1, k, x_cells, y_cells)];
+
+                if (k > 0)
+                    sum += heat_matrix[XYZINDEX(i, j, k-1, x_cells, y_cells)];
+                if (k < zsize)
+                    sum += heat_matrix[XYZINDEX(i, j, k+1, x_cells, y_cells)];
 
 
                 // also diagonals and self
@@ -103,20 +117,16 @@ void thread_update(int xmin, int xmax, int ymin, int ymax, int zmin, int zmax)
 void update()
 {
 #ifndef STD_THREADING
-    thread_update(1, x_cells - 1, 1, y_cells - 1, 1, z_cells - 1);
+    thread_update(0, x_cells, 0, y_cells, 0, z_cells);
 #else
 # ifndef _WIN32
     int numthreads = sysconf(_SC_NPROCESSORS_ONLN) - 1;
 #  else
     int numthreads = std::threads::hardware_concurrency() - 1;
 # endif
-    int xsize = (x_cells - 1);
-    int ysize = (y_cells - 1);
-    int zsize = (z_cells - 1);
+    int xwidth = x_cells / (numthreads + 1);
 
-    int xwidth = (int)((xsize - 1) / (numthreads + 1));
-
-    int xmin = 1;
+    int xmin = 0;
     int xmax;
 
     // create our threads
@@ -124,12 +134,12 @@ void update()
     for (int i = 0; i < numthreads; ++i) {
         xmax = xmin + xwidth;
 
-        threads[i] = std::thread(thread_update, xmin, xmax, 1, ysize, 1, zsize);
+        threads[i] = std::thread(thread_update, xmin, xmax, 0, y_cells, 0, z_cells);
 
         xmin = xmax;
     }
 
-    thread_update(xmin, xsize, 1, ysize, 1, zsize);
+    thread_update(xmin, x_cells, 0, y_cells, 0, z_cells);
 
     // join our threads
     for (int i = 0; i < numthreads; ++i)
