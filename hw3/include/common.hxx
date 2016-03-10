@@ -154,7 +154,7 @@ void display()
     // call the update function
     (*updatefunc)();
     framenum++;
-    //cout << "Frame #" << framenum++ << endl;
+    cout << "Frame #" << framenum << endl;
 
     // setup the camera
     for (int c = 0; c < 3; ++c) {
@@ -257,8 +257,8 @@ void display()
     if (next_heat_matrix)
         swap_matrices(&heat_matrix, &next_heat_matrix);
 
-    if (framenum == 1000) {
-        cout << "Reached 1000 frames. Exiting." << endl;
+    if (framenum == 500) {
+        cout << "Reached 500 frames. Exiting." << endl;
         exit(1);
     }
 }
