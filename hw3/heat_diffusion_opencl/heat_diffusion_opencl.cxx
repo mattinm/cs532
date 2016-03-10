@@ -1,115 +1,150 @@
 #include "common.hxx"
 
-#define __CL_ENABLE_EXCEPTIONS
-#include <CL/cl.hpp>
+#ifdef __APPLE__
+# include <OpenCL/cl.hpp>
+#else
+# include <CL/cl.hpp>
+#endif
+
+#include <fstream>
+#include <utility>
+
+#define CLERROR(err) \
+    if ((err) != CL_SUCCESS) { \
+        cerr << "[" << __FILE__ << ":" << __LINE__ << "] " << endl; \
+        exit(1); \
+    }
+
+#define CLERROR_BOOL(err) CLERROR(err ? CL_SUCCESS : -1)
 
 //OpenCL specific variables
-cl::Buffer *gpu_v;
-cl::Buffer *gpu_next;
+cl::Buffer gpu_v;
+cl::Buffer gpu_next;
+cl::Kernel kernel;
+cl::CommandQueue queue;
+cl_int err;
 
 void cleanup()
 {
+    // everything *should* gracefully exit
 }
-
-/*__global__ void gpu_diffuse(float *v, float *next, int xmax, int ymax, int zmax, int maxpos)
-{
-    int x = threadIdx.x + blockDim.x * blockIdx.x;
-    int y = threadIdx.y + blockDim.y * blockIdx.y;
-    int z = threadIdx.z + blockDim.z * blockIdx.z;
-
-    int position = XYZINDEX(x, y, z, xmax, ymax);
-
-    float sum = 0.0f;
-
-    // make sure we're in bounds
-    if (position >= maxpos || x >= xmax || y >= ymax || z >= zmax)
-        return;
-
-    // just the sides 
-    sum += v[position];
-
-    if (x > 0)
-        sum += v[XYZINDEX(x-1, y, z, xmax, ymax)];
-    if (x < (xmax-1))
-        sum += v[XYZINDEX(x+1, y, z, xmax, ymax)];
-
-    if (y > 0)
-        sum += v[XYZINDEX(x, y-1, z, xmax, ymax)];
-    if (y < (ymax-1))
-        sum += v[XYZINDEX(x, y+1, z, xmax, ymax)];
-
-    if (z > 0)
-        sum += v[XYZINDEX(x, y, z-1, xmax, ymax)];
-    if (z < (zmax-1))
-        sum += v[XYZINDEX(x, y, z+1, xmax, ymax)];
-
-    // update the value and minimize small values
-    next[position] = sum / 7.0f;
-    if (next[position] <= 0.01f)
-        next[position] = 0.0f;
-}*/
 
 /* Updates at each timestep */
 void update()
 {
-    // swap our gpu pointers around
-    //swap_matrices(&gpu_v, &gpu_sum);
+    // run our kernel
+    cl::Event event;
+    err = queue.enqueueNDRangeKernel(
+            kernel,
+            cl::NullRange,
+            cl::NDRange(x_cells, y_cells, z_cells),
+            cl::NDRange(1, 1, 1),
+            NULL,
+            &event
+    );
+    CLERROR(err);
+
+    // wait for the kernel to stop
+    event.wait();
+
+    // read back the data
+    err = queue.enqueueReadBuffer(
+            gpu_next,
+            CL_TRUE,
+            0,
+            arr_size * sizeof(float),
+            heat_matrix
+    );
+    CLERROR(err);
+
+    // swap the gpu memory buffers
+    err = kernel.setArg(0, gpu_next);
+    CLERROR(err);
+    err = kernel.setArg(1, gpu_v);
+    CLERROR(err);
 }
 
 int main(int argc, char** argv)
 {
     // initialize our data
     if (!initialize(argc, argv, &update, &cleanup, false)) return 1;
+
     int deviceType = CL_DEVICE_TYPE_GPU;
 
-    try {
-        // get our platform list
-        std::vector<cl::Platform> platformList;
-        cl::Platform::get(&platformList);
+    // get our platform list
+    std::vector<cl::Platform> platformList;
+    cl::Platform::get(&platformList);
+    CLERROR_BOOL(platformList.size());
 
-        cl_context_properties cprops[3] = {
-            CL_CONTEXT_PLATFORM,
-            (cl_context_properties)(platformList[0])(),
-            0
-        };
+    // print out our vendor
+    std::string platformVendor;
+    platformList[0].getInfo((cl_platform_info)CL_PLATFORM_VENDOR, &platformVendor);
+    cout << "Platform Vendor: " << platformVendor << endl;
 
-        // create our context
-        cl::Context context(deviceType, cprops);
-        std::vector<cl::Device> devices = context.getInfo<CL_CONTEXT_DEVICES>();
+    cl_context_properties cprops[3] = {
+        CL_CONTEXT_PLATFORM,
+        (cl_context_properties)(platformList[0])(),
+        0
+    };
 
-        // create our command queue
-        cl::CommandQueue queue(context, devices[0], 0);
+    // create our context
+    cl::Context context(deviceType, cprops, NULL, NULL, &err);
+    CLERROR(err);
 
-        // read in our program as a string
-        ifstream file("heat_diffusion_opencl.cl");
-        string prog(istreambuf_iterator<char>(file), (istreambuf_iterator<char>()));
+    // get our device
+    std::vector<cl::Device> devices = context.getInfo<CL_CONTEXT_DEVICES>();
+    CLERROR_BOOL(devices.size());
 
-        // create our program
-        cl::Program::Sources source(1, make_pair<prog.c_str(), prog.length()+1);
-        cl::Program program(context, source);
+    // open our file
+    std::ifstream file("heat_diffusion_opencl.cl");
+    CLERROR_BOOL(file.is_open());
 
-        // close our file
-        file.close();
+    // read it in character by character
+    std::string prog(std::istreambuf_iterator<char>(file), (std::istreambuf_iterator<char>()));
 
-        // build our program
-        program.build(devices);
+    // close our file
+    file.close();
 
-        // create our kernel
-        cl::Kernel kernel(program, "heat_diffusion_opencl");
+    // create our program
+    cl::Program::Sources source(1, std::make_pair(prog.c_str(), prog.length()+1));
+    cl::Program program(context, source);
 
-        // setup our memory
-        gpu_v = cl::Buffer(context, CL_MEM_READ_WRITE, arr_size * sizeof(float));
-        gpu_next = cl::Buffer(context, CL_MEM_READ_WRITE, arr_size * sizeof(float));
+    // print out our program
+    cout << prog.c_str() << endl;
 
-        // setup our args
-        kernel.setArg(0, gpu_v);
-        kernel.setArg(1, gpu_next);
+    // build our program
+    err = program.build(devices, "");
+    CLERROR(err);
 
-        // initialize our data
-        queue.enqueueWriteBuffer(gpu_v, CL_TRUE, 0, arr_size * sizeof(float), heat_matrix);
-    } catch (cl::Error& err) {
-        cout << "Caught exception: " << err.what() << "(" << err.err() << ")" << endl;
-    }
+    // create our kernel
+    kernel = cl::Kernel(program, "heat_diffusion_opencl", &err);
+    CLERROR(err);
+
+    // setup our memory
+    gpu_v = cl::Buffer(context, CL_MEM_READ_WRITE, arr_size * sizeof(float));
+    gpu_next = cl::Buffer(context, CL_MEM_READ_WRITE, arr_size * sizeof(float));
+
+    // setup our array args 
+    err = kernel.setArg(0, gpu_v);
+    CLERROR(err);
+    err = kernel.setArg(1, gpu_next);
+    CLERROR(err);
+
+    // setup our scalar args
+    err = kernel.setArg(2, x_cells);
+    CLERROR(err);
+    err = kernel.setArg(3, y_cells);
+    CLERROR(err);
+    err = kernel.setArg(4, z_cells);
+    CLERROR(err);
+
+    // create our command queue
+    queue = cl::CommandQueue(context, devices[0], 0, &err);
+    CLERROR(err);
+
+    // initialize our data
+    err = queue.enqueueWriteBuffer(gpu_v, CL_TRUE, 0, arr_size * sizeof(float), heat_matrix);
+    CLERROR(err);
 
     // start up opengl
     startOpengl(argc, argv);

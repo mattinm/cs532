@@ -28,3 +28,4 @@ set(CUSTOM_LIBRARIES ${OPENGL_LIBRARIES} ${GLUT_LIBRARIES})
 
 add_subdirectory(heat_diffusion_cuda)
 add_subdirectory(heat_diffusion_cpu)
+add_subdirectory(heat_diffusion_opencl)
