@@ -43,19 +43,19 @@ __global__ void gpu_diffuse(float *v, float *next, int xmax, int ymax, int zmax,
     sum += v[position];
 
     if (x > 0)
-        sum += v[XYZINDEX(x-1, y, z, xmax, ymax)];
+        sum += v[position-1];
     if (x < (xmax-1))
-        sum += v[XYZINDEX(x+1, y, z, xmax, ymax)];
+        sum += v[position+1];
 
     if (y > 0)
-        sum += v[XYZINDEX(x, y-1, z, xmax, ymax)];
+        sum += v[position-xmax];
     if (y < (ymax-1))
-        sum += v[XYZINDEX(x, y+1, z, xmax, ymax)];
+        sum += v[position+xmax];
 
     if (z > 0)
-        sum += v[XYZINDEX(x, y, z-1, xmax, ymax)];
+        sum += v[position-(xmax*ymax)];
     if (z < (zmax-1))
-        sum += v[XYZINDEX(x, y, z+1, xmax, ymax)];
+        sum += v[position+(xmax*ymax)];
 
     // update the value and minimize small values
     next[position] = sum / 7.0f;
