@@ -6,7 +6,7 @@
 # include <CL/cl.hpp>
 #endif
 
-#include <fstream>
+#include <cstring>
 #include <utility>
 
 #define CLERROR(err) \
@@ -185,7 +185,12 @@ int main(int argc, char** argv)
     // initialize our data
     if (!initialize(argc, argv, &update, &cleanup, false)) return 1;
 
+    // run on GPU by default, but allow CPU
     int deviceType = CL_DEVICE_TYPE_GPU;
+    for (int i = 1; i < argc; ++i) {
+        if (strcmp(argv[i], "--cpu") == 0)
+            deviceType = CL_DEVICE_TYPE_CPU;
+    }
 
     // get our platform list
     std::vector<cl::Platform> platformList;

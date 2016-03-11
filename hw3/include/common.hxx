@@ -61,6 +61,9 @@ unsigned long framenum = 0L;
 /* Gracefully kills the program */
 void onExit(void)
 {
+    // print out average framerate
+    cout << endl << "Average FPS: " << framenum * 1000.0f / glutGet(GLUT_ELAPSED_TIME) << endl << endl;
+
     delete heat_matrix;
     if (next_heat_matrix)
         delete next_heat_matrix;
@@ -256,11 +259,6 @@ void display()
     //swap the pointers between heat_matrix and heat_matrix_next
     if (next_heat_matrix)
         swap_matrices(&heat_matrix, &next_heat_matrix);
-
-    if (framenum == 500) {
-        cout << "Reached 500 frames. Exiting." << endl;
-        exit(1);
-    }
 }
 
 /* Helper function to print usage. */
@@ -300,7 +298,7 @@ int initialize(int argc, char **argv, void (*_updatefunc)(void), void (*_cleanup
             x_cells = atoi(argv[++i]);
             y_cells = atoi(argv[++i]);
             z_cells = atoi(argv[++i]);
-        } else {
+        } else if (strcmp(argv[i], "--cpu") != 0) {
             cerr << "Unknown argument '" << argv[i] << "'." << endl;
             usage(argv[0]);
             return 0;
