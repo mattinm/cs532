@@ -14,7 +14,7 @@ elseif (COMPILER_SUPPORTS_CXX0x)
     add_definitions(-DSTD_THREADING)
     if (NOT WIN32)
         set (CMAKE_CXX_FLAGS    "${CMAKE_CXX_FLAGS} -std=c++0x")
-    endif(not WIN32)
+    endif(NOT WIN32)
 else()
     message (STATUS "The compiler ${CMAKE_CXX_COMPILER} has no C++11 support.
     Skipping multithreading.")
