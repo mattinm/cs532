@@ -1,0 +1,97 @@
+\usepackage{epsfig,fancybox,verbatim,moreverb}
+\usepackage{times}
+\usepackage[T1]{fontenc}
+%\usepackage{epsfig, graphicx, fancybox, alltt, ifthen, boxit, 
+%float, amsmath, amssymb, epsf, array, verbatim, moreverb}
+
+
+\pagestyle{plain}
+
+
+\def\inputfig#1{\bgroup\input{#1.tex}\centerline{\box\graph}\egroup}
+
+% Make items flush with left margin
+\setlength{\itemindent}{0pt}
+\setlength{\leftmargini}{1em}
+
+%\setlength{\oddsidemargin}{0.25in}
+%\setlength{\textwidth}{6.0in}
+%\setlength{\topmargin}{-0.25in}
+%\setlength{\textheight}{8.50in}
+
+\setlength{\oddsidemargin}{0in}
+%\setlength{\textwidth}{6.25in}
+\setlength{\textwidth}{6.5in}
+\setlength{\topmargin}{-0.25in}
+%\setlength{\topmargin}{0.25in}
+%\setlength{\textheight}{9.25in}
+\setlength{\textheight}{8.75in}
+
+%\setlength{\parsep}{5pt}
+%\setlength{\parskip}{5pt plus 2pt minus 1pt}
+%\def\mnote#1{\marginpar{\tiny {#1}}}
+\def\mnote#1{}
+\def\note#1{!!~~{\sc #1}} 
+
+%\input{commands}
+%\input{/home/agha/agha/ganges/papers/fmoods/lmac}
+%\input{/home/agha/agha/ganges/papers/fmoods/mac}
+%\input{macros}
+%\input{/home/agha/agha/ganges/papers/fmoods/macro}
+%\input{/home/agha/agha/ganges/papers/fmoods/commands}
+
+\makeatletter
+\def\thebibliography#1{\list
+  {[\arabic{enumi}]}{\settowidth\labelwidth{[#1]}\leftmargin\labelwidth
+    \advance\leftmargin\labelsep
+    \usecounter{enumi}}
+    \def\newblock{\hskip .11em plus .33em minus -.07em}
+    \sloppy\clubpenalty4000\widowpenalty4000
+    \sfcode`\.=1000\relax}
+
+% \newcommand\section{\@startsection {section}{1}{\z@}%
+%                                    {-3.5ex \@plus -1ex \@minus -.2ex}%
+%                                    {2.3ex \@plus.2ex}%
+%                                    {\normalfont\Large\bfseries}}
+% \newcommand\subsection{\@startsection{subsection}{2}{\z@}%
+%                                      {-3.25ex\@plus -1ex \@minus -.2ex}%
+%                                      {1.5ex \@plus .2ex}%
+%                                      {\normalfont\large\bfseries}}
+% \newcommand\subsubsection{\@startsection{subsubsection}{3}{\z@}%
+%                                      {-3.25ex\@plus -1ex \@minus -.2ex}%
+%                                      {1.5ex \@plus .2ex}%
+%                                      {\normalfont\normalsize\bfseries}}
+% \newcommand\paragraph{\@startsection{paragraph}{4}{\z@}%
+%                                     {3.25ex \@plus1ex \@minus.2ex}%
+%                                     {-1em}%
+%                                     {\normalfont\normalsize\bfseries}}
+% \newcommand\subparagraph{\@startsection{subparagraph}{5}{\parindent}%
+%                                        {3.25ex \@plus1ex \@minus .2ex}%
+%                                        {-1em}%
+%                                       {\normalfont\normalsize\bfseries}}
+
+
+\renewcommand\section{\@startsection {section}{1}{\z@}%
+                                   {-2.8ex \@plus -1ex \@minus -.2ex}%
+                                   {0.85ex \@plus.2ex}%
+                                   {\normalfont\Large\bfseries}}
+\renewcommand\subsection{\@startsection{subsection}{2}{\z@}%
+                                     {-2.8ex\@plus -1ex \@minus -.2ex}%
+                                     {0.85ex \@plus .2ex}%
+                                     {\normalfont\large\bfseries}}
+\renewcommand\subsubsection{\@startsection{subsubsection}{3}{\z@}%
+                                     {-2.8ex\@plus -1ex \@minus -.2ex}%
+                                     {0.85ex \@plus .2ex}%
+                                     {\normalfont\normalsize\bfseries}}
+\renewcommand\paragraph{\@startsection{paragraph}{4}{\z@}%
+                                    {1.75ex \@plus1ex \@minus.2ex}%
+                                    {-1.25em}%
+                                    {\normalfont\normalsize\bfseries}}
+\renewcommand\subparagraph{\@startsection{subparagraph}{5}{\parindent}%
+                                       {2.00ex \@plus1ex \@minus .2ex}%
+                                       {-1em}%
+                                      {\normalfont\normalsize\bfseries}}
+\makeatother
+
+\newcommand{\subsubsubsection}{\paragraph}
+\newcommand{\subsubsubsubsection}{\subparagraph}

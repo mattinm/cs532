@@ -1,0 +1,86 @@
+\documentclass[11pt]{article} 
+\setlength{\pdfpagewidth}{8.5in}
+\setlength{\pdfpageheight}{11in}
+
+\input{proposal-defs-alt}
+\usepackage{url}
+\usepackage{latexsym}
+\usepackage{eepic,color,bm,array,amsmath}
+\def\A{{\cl A}}
+\def\L{{\cl L}}
+
+\sloppy
+
+\newcommand{\eg}{{\it e.g.}}
+\newcommand{\ie}{{\it i.e.}}
+
+\begin{document}
+
+\pagestyle{empty}
+% Make sections use the alphabet rather than numbers
+\renewcommand{\thesection}{\Alph{section}}
+
+\setlength{\parsep}{5pt}
+\setlength{\parskip}{5pt plus 2pt minus 1pt}
+
+\noindent
+{\large\bf Harnessing Crowd Sourced Positive Samples for Automated Image Recognition in Wildlife Ecology Imagery}
+
+\begin{center}
+\begin{minipage}{0.53\linewidth}
+\begin{center}
+{\bf Marshall Mattingly}\\
+\begin{small}
+Graduate Student\\
+Department of Biology\\
+{\it marshall.p.mattingly@und.edu}
+\end{small}
+\end{center}
+\end{minipage}
+\begin{minipage}{0.43\linewidth}
+\begin{center}
+{\bf Travis Desell, Ph.D.}\\
+\begin{small}
+Assistant Professor of Computer Science\\
+Department of Computer Science\\
+{\it tdesell@cs.und.edu}
+\end{small}
+\end{center}
+\end{minipage}
+%\vspace{\baselineskip}
+%\begin{minipage}{0.53\linewidth}
+%\begin{center}
+%{\bf Susan Ellis-Felege, Ph.D.}\\
+%\begin{small}
+%Assistant Professor of Wildlife Ecology and Management\\
+%Department of Biology\\
+%{\it susan.felege@email.und.edu}
+%\end{small}
+%\end{center}
+%\end{minipage}
+%\begin{minipage}{0.43\linewidth}
+%\begin{center}
+%{\bf Robert Newman, Ph.D.}\\
+%\begin{small}
+%Assistant Professor\\
+%Department of Biology\\
+%{\it robert.newman@email.und.edu}
+%\end{small}
+%\end{center}
+%\end{minipage}
+\end{center}
+
+\noindent
+The primary goal of this collaborative proposal is to begin automating species detection from motion-trail camera and unmanned aerial vehicle (UAV) images from the Hudson Bay area of Canada using positive samples detected by citizen scientiest, students, and ecologist. Additional goals are to begin: {\it i} the implementation and comparision of different computer vision algorithms for species detection using known good samples; and {\it ii} comparing the developed vision algorithms on images outside the positive dataset, using volunteers and students to confirm the automated results.
+
+\paragraph{Scientific Merit:} \hspace{-5mm} Camera technology has become a common tool in the field of wildlife biology.  Both still images and video surveillance can allow researchers to monitor wildlife in remote locations and negate effects of human observers on animal behaviors.  However, this technology results in large amounts of data in order to obtain samples sizes to make sound ecological inference.  For example, global warming has the potential to influence the
+migration, nesting, and survival of birds and mammals in the Hudson Bay area of Northern Canada.  In order to evaluate potential ecological changes in the Hudson Bay area, Dr. Ellis-Felege and Dr. Robert Newman will monitor dozens of motion-triggered trail cameras placed in common nesting regions.  Additionally, UAV flights are flown during the summer months to visualize
+a programmable area that is larger than trail cameras allow.  To date, the trail cameras have generated over 2,000,000 images, with millions more images potentially generated annually, while the UAV flights have generated 60,000 images with 100,000 or so potentially generated annually. Examining these large, ever-growing datasets by hand is time consuming and tedious, which can lead to human errors. This error is minimized by the crowd sourced volunteer postive sample collection,
+however it is impossible to entirely elimiate this element. By developing supervised automated computer vision detection tools, likely different for the two datasets given the different perspectives (ground-level and top-down in the trail cameras and UAV flights, respectively), fatigue can be elimited entirely, only requiring human intervention for validation and when the algorithms are unsure.
+
+
+\paragraph{Broader Impact:} \hspace{-5mm} Monitoring the ecological health and changes of the Hudson Bay area of Northern Canada provides a means of demonstating how global warming is affecting the polar ecology.  Comparisons between volunteer and expert detecting positive samples for image recognition algorithms can show the degree to which volunteers match the experts both individually and as a whole, and whether one is clearly better than the other on generating positive
+samples. Assuming the voluteers are within a small error, or even better than the experts, at generating positive samples, outreach initiatives could potential inspire more volunteers to dedicate time to the project. The development of automated computer image recognition algorithms will allow Dr. Ellis-Felege and Dr. Newman to focus on the image collection and ecological questions and answers, without having to dedicate as many human resources to the cataloging of the imagery. The automated algorithms developed will be as generic as possible to provide a general guideline for which other image recognition programs can build up quickly and with minimal code changes to allow for the detection
+of additional species, and potentially geographical objects, so that other projects can benefit from the algorithms created.
+
+\end{document}
