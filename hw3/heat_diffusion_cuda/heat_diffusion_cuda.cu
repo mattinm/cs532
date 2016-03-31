@@ -12,12 +12,15 @@
         exit(EXIT_FAILURE); \
     }
 
+#define TILE_SIZE  16 
+
 //CUDA specific variables
 float *gpu_v;
 float *gpu_sum;
 cudaError_t err;
-dim3 dimBlock(8,8,8);
+dim3 dimBlock(TILE_SIZE, TILE_SIZE, 1);
 dim3 dimGrid(1,1,1);
+
 
 void cleanup()
 {
@@ -25,48 +28,123 @@ void cleanup()
     cudaFree(gpu_sum);
 }
 
-__global__ void gpu_diffuse(float *v, float *next, int xmax, int ymax, int zmax, int maxpos)
+__global__ void gpu_diffuse(float *v, float *next, int xmax, int ymax, int zmax)
 {
-    int x = threadIdx.x + blockDim.x * blockIdx.x;
-    int y = threadIdx.y + blockDim.y * blockIdx.y;
-    int z = threadIdx.z + blockDim.z * blockIdx.z;
+    __shared__ float z_share[TILE_SIZE][TILE_SIZE][3];
 
-    int position = XYZINDEX(x, y, z, xmax, ymax);
+    int x = threadIdx.x + TILE_SIZE * blockIdx.x;
+    int y = threadIdx.y + TILE_SIZE * blockIdx.y;
+
+    int position = x + y * xmax;
+    int zjump = xmax * ymax;
+    bool inrect = x < xmax && y < ymax;
 
     float sum = 0.0f;
+    float xprev = 0.0f;
+    float xnext = 0.0f;
+    float yprev = 0.0f;
+    float ynext = 0.0f;
 
-    // make sure we're in bounds
-    if (position >= maxpos || x >= xmax || y >= ymax || z >= zmax)
-        return;
+    // initialize the memory
+    if (inrect) {
+        z_share[threadIdx.x][threadIdx.y][1] = 0.0f;
+        z_share[threadIdx.x][threadIdx.y][2] = v[position];
+    } else {
+        z_share[threadIdx.x][threadIdx.y][0] = 0.0f;
+        z_share[threadIdx.x][threadIdx.y][1] = 0.0f;
+        z_share[threadIdx.x][threadIdx.y][2] = 0.0f;
+    }
 
-    // just the sides 
-    sum += v[position];
+    position -= zjump;
+    for (int z = 0; z < zmax; ++z) {
+        // sync up the before we go changing it
+        __syncthreads();
 
-    if (x > 0)
-        sum += v[position-1];
-    if (x < (xmax-1))
-        sum += v[position+1];
+        if (inrect) {
+            position += zjump;
 
-    if (y > 0)
-        sum += v[position-xmax];
-    if (y < (ymax-1))
-        sum += v[position+xmax];
+            // move the z layers forward one
+            z_share[threadIdx.x][threadIdx.y][0] = z_share[threadIdx.x][threadIdx.y][1];
+            z_share[threadIdx.x][threadIdx.y][1] = z_share[threadIdx.x][threadIdx.y][2];
 
-    if (z > 0)
-        sum += v[position-(xmax*ymax)];
-    if (z < (zmax-1))
-        sum += v[position+(xmax*ymax)];
+            // update the next z
+            if (z < (zmax-1)) {
+                z_share[threadIdx.x][threadIdx.y][2] = v[position + zjump];
+            } else {
+                z_share[threadIdx.x][threadIdx.y][2] = 0.0f;
+            }
 
-    // update the value and minimize small values
-    next[position] = sum / 7.0f;
-    if (next[position] <= 0.01f)
-        next[position] = 0.0f;
+            if (threadIdx.x == 0) {
+                if (x > 0)
+                    xprev = v[position - 1];
+                else
+                    xprev = 0.0f;
+            } else if (threadIdx.x == (TILE_SIZE-1)) {
+                if (x < (xmax-1))
+                    xnext = v[position + 1];
+                else
+                    xnext = 0.0f;
+            }
+
+            if (threadIdx.y == 0) {
+                if (y > 0)
+                    yprev = v[position - xmax];
+                else
+                    yprev = 0.0f;
+            } else if (threadIdx.y == (TILE_SIZE-1)) {
+                if (y < (ymax-1))
+                    ynext = v[position + xmax];
+                else
+                    ynext = 0.0f;
+            }
+        }
+
+        // sync up the memory before using it
+        __syncthreads();
+
+        // only sum up if in rect 
+        if (inrect) {
+            // start with ourself
+            sum = z_share[threadIdx.x][threadIdx.y][0]; 
+            sum += z_share[threadIdx.x][threadIdx.y][1]; 
+            sum += z_share[threadIdx.x][threadIdx.y][2];
+
+            // do our x layers
+            if (threadIdx.x == 0)
+                sum += xprev;
+            else
+                sum += z_share[threadIdx.x-1][threadIdx.y][1]; 
+
+            if (threadIdx.x == (TILE_SIZE-1))
+                sum += xnext;
+            else
+                sum += z_share[threadIdx.x+1][threadIdx.y][1]; 
+
+            // do our y layes
+            if (threadIdx.y == 0)
+                sum += yprev;
+            else
+                sum += z_share[threadIdx.x][threadIdx.y-1][1]; 
+
+            if (threadIdx.y == (TILE_SIZE-1))
+                sum += ynext;
+            else
+                sum += z_share[threadIdx.x][threadIdx.y+1][1]; 
+
+            // update the value and minimize small values
+            sum /= 7.0f;
+            if (sum <= 0.01f)
+                sum = 0.0f;
+
+            next[position] = sum;
+        }
+    }
 }
 
 /* Updates at each timestep */
 void update()
 {
-    gpu_diffuse<<<dimGrid, dimBlock>>>(gpu_v, gpu_sum, x_cells, y_cells, z_cells, arr_size);
+    gpu_diffuse<<<dimGrid, dimBlock>>>(gpu_v, gpu_sum, x_cells, y_cells, z_cells);
 
     err = cudaGetLastError();
     CUDAASSERT(err);
@@ -97,18 +175,8 @@ int main(int argc, char** argv)
 
     // setup our dims
     
-    if (z_cells <= 3) dimBlock.z = 2;
-    else if (z_cells <= 7) dimBlock.z = 4;
-
-    if (x_cells <= 3) dimBlock.x = 2;
-    else if (x_cells <= 7) dimBlock.x = 4;
-
-    if (y_cells <= 3) dimBlock.y = 2;
-    else if (y_cells <= 7) dimBlock.y = 4;
-
     dimGrid.x = (int)ceil((float)x_cells / dimBlock.x);
     dimGrid.y = (int)ceil((float)y_cells / dimBlock.y);
-    dimGrid.z = (int)ceil((float)z_cells / dimBlock.z);
 
     cout << "Cuda Information" << endl;
     cout << "================" << endl;
