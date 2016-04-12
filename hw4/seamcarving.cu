@@ -57,16 +57,18 @@ float *costs;
 int *seam;
 
 // cuda variables
-cudaError_t err;
+#define TILE_SIZE   512
 int *gpu_dirs;
 float *gpu_costs;
 float *gpu_vals;
 unsigned char *gpu_inverted_image;
 
+cudaError_t err;
+dim3 dimBlock(TILE_SIZE, 1, 1);
+dim3 dimGrid(1,1,1);
+
 int seams_to_remove;
 long start_time;
-
-#define TILE_SIZE   16
 
 #define CUDAASSERT(x) \
     if ((x) != cudaSuccess) { \
@@ -83,52 +85,75 @@ static int POSITION(int x, int y) {
     return ((y * window_width) + x);
 }
 
-__global__ void gpu_costs(float *costs, float *vals, float *dirs, int width, int height)
+__global__ void gpu_calc_costs(float *costs, float *vals, int *dirs, int width, int height)
 {
     // tiled storage for the local
-    __shared__ float shared_costs[TILE_SIZE][2];
+    extern __shared__ float shared_costs[];
+    float *current_costs = &shared_costs[width];
 
     // determine our location
-    int x = threadIdx.x + TILE_SIZE * blockIdx.x;
+    int x;
     int index;
 
-    // initialize our top row 
-    shared_costs[threadIdx.x][1] = vals[INDEX(x, height-1, width)];
-    costs[INDEX(x, height-1)] = shared_costs[threadIdx.x][1];
+    // fill in the top row first
+    for (x = threadIdx.x; x < width; x += TILE_SIZE) {
+        index = INDEX(x, height-1, width);
 
-    // go through our y
-    float cost_left, cost_up, cost_right;
-    for (int y = height - 2; y >= 0; ++y) {
-        index = INDEX(x, y, width);
+        // initialize our top row 
+        shared_costs[x] = vals[index];
+        costs[index] = shared_costs[x];
+    }
 
+    // go by column
+    float cost_left, cost_up, cost_right, cost;
+    for (int y = height - 2; y >= 0; --y) {
         // sync before starting
         __syncthreads();
 
-        // calculate costs from our next row neighbors
-        cost_left = (x == 0) ? 100000.0f : share_costs[threadIdx-1, 1];
-        cost_up = shared_costs[threadIdx.x, 1];
-        cost_left = (x == (width - 1)) ? 100000.0f : share_costs[threadIdx+1, 1];
+        for (x = threadIdx.x; x < width; x += TILE_SIZE) {
+            index = INDEX(x, y, width);
 
-        // update our current shared cost and direction
-        shared_costs[threadIdx.x][0] = vals[index];
-        if (cost_left < cost_up && cost_left < cost_right) {
-            shared_costs[threadIdx.x][0] += shared_costs[threadIdx.x-1][1];
-            dirs[index] = -1;
-        } else if (cost_right < cost_left && cost_right < cost_up) {
-            shared_costs[threadIdx.x][0] += shared_costs[threadIdx.x+1][1];
-            dirs[index] = 1;
-        } else {
-            shared_costs[threadIdx.x][0] += shared_costs[threadIdx.x][1];
-            dirs[index] = 0;
+            // the left edges must know the last right value
+            if (x == 0) {
+                cost_left = 100000.0f;
+            } else {
+                cost_left = shared_costs[x-1];
+            }
+
+            cost_up = shared_costs[x];
+
+            // the right edges must know the next left value
+            if (x == (width-1)) {
+                cost_right = 100000.0f;
+            } else {
+                cost_right = shared_costs[x+1];
+            }
+
+            // update our current shared cost and direction
+            cost = vals[index];
+            if (cost_left < cost_up && cost_left < cost_right) {
+                cost += cost_left;
+                dirs[index] = -1;
+            } else if (cost_right < cost_left && cost_right < cost_up) {
+                cost += cost_right;
+                dirs[index] = 1;
+            } else {
+                cost += cost_up;
+                dirs[index] = 0;
+            }
+
+            // update our main memory
+            costs[index] = cost;
+            current_costs[x] = cost;
         }
-
-        // update our main memory
-        costs[index] = shared_costs[threadIdx.x][0];
 
         // sync before flipping the shared_costs array to next
         __syncthreads();
 
-        shared_costs[threadIdx.x][1] = shared_costs[threadIdx.x][0];
+        // update the shared_costs
+        for (x = threadIdx.x; x < width; x += TILE_SIZE) {
+            shared_costs[x] = current_costs[x];
+        }
     }
 }
 
@@ -140,15 +165,14 @@ void display() {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     if (count < seams_to_remove) {
-        gpu_costs<<<dimGrid, dimBlock>>>(gpu_costs, gpu_vals, gpu_dirs, window_width, window_height);
-
+        gpu_calc_costs<<<dimGrid, dimBlock, (window_width*2)>>>(gpu_costs, gpu_vals, gpu_dirs, window_width, window_height);
         err = cudaGetLastError();
         CUDAASSERT(err);
 
         err = cudaMemcpy(costs, gpu_costs, sizeof(*costs) * window_size, cudaMemcpyDeviceToHost);
         CUDAASSERT(err);
 
-        err = cudaMemcpy(dirs, gpu_dirs, sizeof(*costs) * window_size, cudaMemcpyDeviceToHost);
+        err = cudaMemcpy(dirs, gpu_dirs, sizeof(*dirs) * window_size, cudaMemcpyDeviceToHost);
         CUDAASSERT(err);
 
         //calculate the same to remove
@@ -279,14 +303,18 @@ int main(int argc, char** argv) {
     greyscale = NULL;
 
     // setup our gpu memory
-    gpu_dirs = cudaMalloc(sizeof(*dirs) * window_size);
-    gpu_costs = cudaMalloc(sizeof(*costs) * window_size);
-    gpu_vals = cudaMalloc(sizeof(*vals) * window_size);
-    gpu_inverted_image = cudaMalloc(sizeof(*inverted_image) * window_size * 4);
+    err = cudaMalloc((void **) &gpu_dirs, sizeof(*dirs) * window_size);
+    CUDAASSERT(err);
+    err = cudaMalloc((void **) &gpu_costs, sizeof(*costs) * window_size);
+    CUDAASSERT(err);
+    err = cudaMalloc((void **) &gpu_vals, sizeof(*vals) * window_size);
+    CUDAASSERT(err);
+    err = cudaMalloc((void **) &gpu_inverted_image, sizeof(*inverted_image) * window_size * 4);
+    CUDAASSERT(err);
 
     // copy in our current values
     cudaMemcpy(gpu_vals, vals, sizeof(*vals) * window_size, cudaMemcpyHostToDevice);
-    cudaMemcpy(gpu_inverted_image, inverted_image, sizeof(*vals) * window_size, cudaMemcpyHostToDevice);
+    cudaMemcpy(gpu_inverted_image, inverted_image, sizeof(*inverted_image) * window_size * 4, cudaMemcpyHostToDevice);
 
     cout << "Initialized Seam Carver!" << endl;
     cout << "window width: "    << window_width << endl;
