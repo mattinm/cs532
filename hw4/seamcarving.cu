@@ -261,12 +261,14 @@ void display() {
         /////////////////////////////////////////////////
         ///// START OF CUDA REMOVE VARIANT
         /////////////////////////////////////////////////
+        /*
         gpu_remove_seam<<<dimGrid, dimBlock>>>(gpu_seam, gpu_inverted_image, gpu_vals, gpu_dirs, window_width, window_height, count);
         err = cudaGetLastError();
         CUDAASSERT(err);
 
         // copy the inverted_image back from the GPU
         err = cudaMemcpy(inverted_image, gpu_inverted_image, sizeof(*inverted_image) * window_size * 4, cudaMemcpyDeviceToHost);
+        */
         /////////////////////////////////////////////////
         ///// END OF CUDA REMOVE VARIANT
         /////////////////////////////////////////////////
@@ -274,7 +276,6 @@ void display() {
         /////////////////////////////////////////////////
         ///// START OF NORMAL REMOVE VARIANT
         /////////////////////////////////////////////////
-        /*
         for (int y = 0; y < window_height; ++y) {
             int x = seam[y];
             int index = POSITION4(x, y, 0);
@@ -295,7 +296,6 @@ void display() {
         // copy the new vals to the GPU
         err = cudaMemcpy(gpu_vals, vals, sizeof(*vals) * window_size, cudaMemcpyHostToDevice);
         CUDAASSERT(err);
-        */
         /////////////////////////////////////////////////
         ///// END OF NORMAL REMOVE VARIANT
         /////////////////////////////////////////////////
