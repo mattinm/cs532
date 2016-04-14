@@ -21,6 +21,7 @@
 #include <iostream>
 #include <iomanip>
 #include <sstream>
+#include <sys/time.h>
 #include "math.h"
 
 #include "lodepng.h"
@@ -55,6 +56,8 @@ int *seam;
 
 int seams_to_remove;
 long start_time;
+long start_time_costs;
+long start_time_remove;
 
 //find the pixel, and the RGBA (z is 0, 1, 2, 3)  part of that pixel
 static int POSITION4(int x, int y, int z) {
@@ -65,6 +68,13 @@ static int POSITION(int x, int y) {
     return ((y * window_width) + x);
 }
 
+static long time_ms()
+{
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    return tv.tv_sec * 1000L + (long)(tv.tv_usec / 1000);
+}
+
 /**
  *  The display function gets called repeatedly, updating the visualization of the simulation
  */
@@ -73,6 +83,7 @@ void display() {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     if (count < seams_to_remove) {
+        start_time_costs = time_ms();
         //Then calculate the costs and directions
         //initialze the top row first
         for (int x = 0; x < (window_width - count); x++) {
@@ -120,6 +131,7 @@ void display() {
                 dirs[POSITION(x, y)] = -1;
             }
         }
+        cerr << count << "," << (time_ms() - start_time_costs);
 
         //calculate the same to remove
         //first get the min cost at the bottom row
@@ -146,6 +158,7 @@ void display() {
         */
 
 
+        start_time_remove = time_ms();
         //remove one line with the seamcarving algorithm
         for (int y = 0; y < window_height; y++) {
             int x;
@@ -166,6 +179,7 @@ void display() {
             vals[POSITION(x, y)] = 0;
         }
 
+        cerr << "," << (time_ms() - start_time_remove) << endl;
     } else if (count == seams_to_remove) {
         cout << "It took " << (time(NULL) - start_time) << " seconds to remove " << seams_to_remove << " seams." << endl;
     }
